@@ -1,30 +1,44 @@
-import CredentialsProvider from "next-auth/providers/credentials";
-import { sql } from "@vercel/postgres";
-import { compare } from "bcryptjs";
-import type { NextAuthOptions } from "next-auth";
+import NextAuth, { NextAuthOptions, Session, User } from 'next-auth';
+import CredentialsProvider from 'next-auth/providers/credentials';
+import { JWT } from 'next-auth/jwt';
+import { randomBytes } from 'crypto';
+import pool from './db';
+import bcrypt from 'bcryptjs';
 
 // Extend the built-in session types
 declare module 'next-auth' {
   interface Session {
     user: {
-      id: number;
-      email: string;
-      is_admin: boolean;
+      id: string;
+      name?: string | null;
+      email?: string | null;
+      role?: string;
+      isAdmin?: boolean;
+      accessToken?: string;
+      tenantId?: string;
     };
   }
 
   interface User {
-    id: number;
-    email: string;
-    is_admin: boolean;
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    role?: string;
+    isAdmin?: boolean;
+    tenantId?: string;
+    accessToken?: string;
   }
 }
 
 declare module 'next-auth/jwt' {
   interface JWT {
-    id: number;
-    email: string;
-    is_admin: boolean;
+    id: string;
+    email?: string | null;
+    name?: string | null;
+    role?: string;
+    isAdmin?: boolean;
+    tenantId?: string;
+    accessToken?: string;
   }
 }
 
@@ -145,7 +159,7 @@ if (missingVars.length > 0) {
 export const authOptions: NextAuthOptions = {
   // Session configuration
   session: {
-    strategy: "jwt",
+    strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   
@@ -200,28 +214,46 @@ export const authOptions: NextAuthOptions = {
   
   // Authentication providers
   providers: [
-    CredentialsProvider({
-      name: "Credentials",
+    {
+      id: 'credentials',
+      name: 'Credentials',
+      type: 'credentials',
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
+        password: { label: "Password", type: "password" }
       },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+      async authorize(credentials: any) {
+        // This will hold our custom error message if any
+        let customError = null;
+        
+        try {
+          console.log('Authorization attempt with credentials:', {
+            email: credentials?.email,
+            hasPassword: !!credentials?.password
+          });
 
-        // Fetch user
-        const result = await sql`
-          SELECT id, email, password_hash, is_admin
-          FROM register
-          WHERE email = ${credentials.email}
-          LIMIT 1
-        `;
+          if (!credentials?.email || !credentials?.password) {
+            console.error('Missing credentials');
+            throw new Error('Email and password are required');
+          }
 
-        const user = result.rows[0];
-        if (!user) return null;
+          // Get user from register table with error handling
+          let userQuery;
+          try {
+            userQuery = await pool.query(
+              `SELECT id, email, password_hash as password, first_name as name, is_admin, tenant_id 
+               FROM register 
+               WHERE email = $1`,
+              [credentials.email.toLowerCase().trim()]
+            );
+            console.log('Database query result:', userQuery.rows[0]);
+          } catch (dbError) {
+            console.error('Database query error:', dbError);
+            throw new Error('Authentication service unavailable');
+          }
 
-        const isValid = await compare(credentials.password, user.password_hash);
-        if (!isValid) return null;
+          if (userQuery.rows.length === 0) {
+            console.error('No user found with email:', credentials.email);
             // Return null with a custom error that will be caught by NextAuth
             return null;
           }
