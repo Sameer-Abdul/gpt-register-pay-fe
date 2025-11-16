@@ -91,19 +91,28 @@ interface EventsListProps {
 }
 
 // Dynamically import modules for code-splitting with proper typing
-const CalendarView = dynamic<CalendarViewProps>(
-  () => import('@/components/events/CalendarView').then(mod => mod.default),
-  { loading: () => <Skeleton className="h-[600px] w-full" />, ssr: false }
+const CalendarView = dynamic(
+  () => import('@/components/events/CalendarView'),
+  { 
+    loading: () => <Skeleton className="h-[600px] w-full" />, 
+    ssr: false 
+  }
 );
 
 const CreateEventForm = dynamic<CreateEventFormProps>(
-  () => import('@/components/events/CreateEventForm').then(mod => mod.default),
-  { loading: () => <Skeleton className="h-[600px] w-full" />, ssr: false }
+  () => import('@/components/events/CreateEventForm'),
+  { 
+    loading: () => <Skeleton className="h-[600px] w-full" />, 
+    ssr: false 
+  }
 );
 
 const EventsList = dynamic<EventsListProps>(
-  () => import('@/components/events/EventsList').then(mod => mod.default),
-  { loading: () => <Skeleton className="h-[600px] w-full" />, ssr: false }
+  () => import('@/components/events/EventsList'),
+  { 
+    loading: () => <Skeleton className="h-[600px] w-full" />, 
+    ssr: false 
+  }
 );
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api` : 'http://localhost:3000/api';
