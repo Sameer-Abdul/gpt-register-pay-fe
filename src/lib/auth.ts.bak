@@ -1,0 +1,479 @@
+import NextAuth from 'next-auth';
+import CredentialsProvider from 'next-auth/providers/credentials';
+import { NextAuthOptions } from 'next-auth';
+import { randomBytes } from 'crypto';
+
+import pool from './db';
+import bcrypt from 'bcryptjs';
+
+// Function to generate a simple access token
+function generateAccessToken(userId: string | number): string {
+  // In a production environment, use a proper JWT or OAuth2 token
+  const token = `token_${userId}_${randomBytes(32).toString('hex')}`;
+  console.log(`Generated access token for user ${userId}`);
+  return token;
+}
+
+// Debug function to list all users
+async function listAllUsers() {
+  try {
+    const result = await pool.query('SELECT id, email, password_hash, first_name, last_name FROM register');
+    console.log('All users in register table:', result.rows.map(u => ({
+      id: u.id,
+      email: u.email,
+      hasPassword: !!u.password_hash,
+      name: u.first_name
+    })));
+    return result.rows;
+  } catch (error) {
+    console.error('Error listing users:', error);
+    return [];
+  }
+}
+
+// Call this to debug
+listAllUsers();
+
+async function validateUser(credentials: { email: string; password: string }) {
+  try {
+    console.log('Validating user:', credentials.email);
+    
+    // Get user from register table
+    const userQuery = await pool.query(
+      `SELECT id, email, password_hash as password, first_name as name 
+       FROM register 
+       WHERE email = $1`,
+      [credentials.email.toLowerCase().trim()]
+    );
+
+    if (userQuery.rows.length === 0) {
+      console.log('No user found with email:', credentials.email);
+      return null;
+    }
+
+    const user = userQuery.rows[0];
+    console.log('Found user:', { id: user.id, email: user.email });
+    
+    // Verify password
+    if (!user.password) {
+      console.error('No password hash found for user');
+      return null;
+    }
+
+    // First try direct comparison (for development)
+    if (credentials.password === user.password) {
+      console.log('Password matched via direct comparison');
+    } 
+    // Then try bcrypt comparison
+    else if (user.password.startsWith('$2a$') || user.password.startsWith('$2b$')) {
+      const isValid = await bcrypt.compare(credentials.password, user.password);
+      if (!isValid) {
+        console.log('Invalid password');
+        return null;
+      }
+      console.log('Password matched via bcrypt');
+    } else {
+      console.log('Password format not recognized');
+      return null;
+    }
+
+    return {
+      id: user.id.toString(),
+      email: user.email,
+      name: user.name || user.email.split('@')[0],
+      role: 'user', // Default role
+    };
+  } catch (error) {
+    console.error('Error validating user:', error);
+    return null;
+  }
+}
+
+// Fix for Next.js 13+ with App Router
+declare module 'next-auth' {
+  interface Session {
+    user: {
+      id: string;
+      name?: string | null;
+      email?: string | null;
+      role?: string;
+      isAdmin?: boolean;
+      accessToken?: string;
+    };
+  }
+}
+
+declare module 'next-auth/jwt' {
+  interface JWT {
+    id: string;
+    email?: string | null;
+    name?: string | null;
+    role?: string;
+    isAdmin?: boolean;
+    accessToken?: string;
+  }
+}
+
+// Debug function to log auth events
+const debug = (...args: any[]) => {
+  if (process.env.NODE_ENV === 'development' || process.env.NEXTAUTH_DEBUG === 'true') {
+    console.log('[NextAuth]', ...args);
+  }
+};
+
+// Ensure NEXTAUTH_URL is set in development
+if (process.env.NODE_ENV === 'development' && !process.env.NEXTAUTH_URL) {
+  process.env.NEXTAUTH_URL = 'http://localhost:3000';
+  console.warn('NEXTAUTH_URL not set, defaulting to http://localhost:3000');
+}
+
+// Ensure required environment variables are set
+const requiredEnvVars = ['NEXTAUTH_SECRET'];
+if (process.env.NODE_ENV === 'production') {
+  requiredEnvVars.push('NEXTAUTH_URL');
+}
+
+// Get base URL for cookies
+const isProduction = process.env.NODE_ENV === 'production';
+const protocol = isProduction ? 'https://' : 'http://';
+const host = process.env.NEXTAUTH_URL?.replace(/^https?:\/\//, '') || 'localhost:3000';
+const baseUrl = `${protocol}${host}`;
+
+// Check for missing environment variables
+const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+if (missingVars.length > 0) {
+  const errorMsg = `Missing required environment variables: ${missingVars.join(', ')}`;
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(errorMsg);
+  } else {
+    console.warn(`⚠️  ${errorMsg}`);
+  }
+}
+
+export const authOptions: NextAuthOptions = {
+  // Session configuration
+  session: {
+    strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+    updateAge: 24 * 60 * 60, // 24 hours
+  },
+  
+  // Security
+  secret: process.env.NEXTAUTH_SECRET || 'your-secret-key',
+  
+  // Configure cookies
+  useSecureCookies: false, // Disable secure cookies in development
+  cookies: {
+    sessionToken: {
+      name: isProduction ? '__Secure-next-auth.session-token' : 'next-auth.session-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: false, // Disable secure in development
+        domain: 'localhost', // Explicitly set domain for local development
+        maxAge: 30 * 24 * 60 * 60, // 30 days
+      },
+    },
+  },
+  
+  // Debug configuration
+  debug: process.env.NODE_ENV === 'development' || process.env.NEXTAUTH_DEBUG === 'true',
+  
+  // Configure JWT
+  jwt: {
+    secret: process.env.NEXTAUTH_SECRET || 'your-secret-key',
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  
+  // Logger configuration
+  logger: {
+    error(code, metadata) {
+      console.error('[NextAuth Error]', code, metadata);
+    },
+    warn(code) {
+      console.warn('[NextAuth Warning]', code);
+    },
+    debug(code, metadata) {
+      if (process.env.NODE_ENV === 'development' || process.env.NEXTAUTH_DEBUG === 'true') {
+        console.log('[NextAuth Debug]', code, metadata);
+      }
+    }
+  },
+  
+  // Pages configuration
+  pages: {
+    signIn: '/event-scheduler/login',
+    error: '/event-scheduler/login',
+  },
+  
+  // Authentication providers
+  providers: [
+    {
+      id: 'credentials',
+      name: 'Credentials',
+      type: 'credentials',
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" }
+      },
+      async authorize(credentials: any) {
+        try {
+          console.log('Authorization attempt with credentials:', {
+            email: credentials?.email,
+            hasPassword: !!credentials?.password
+          });
+
+          if (!credentials?.email || !credentials?.password) {
+            console.error('Missing credentials');
+            throw new Error('Email and password are required');
+          }
+
+          // Get user from register table with error handling
+          let userQuery;
+          try {
+            userQuery = await pool.query(
+              `SELECT id, email, password_hash as password, first_name as name, is_admin 
+               FROM register 
+               WHERE email = $1`,
+              [credentials.email.toLowerCase().trim()]
+            );
+            console.log('Database query result:', userQuery.rows[0]);
+          } catch (dbError) {
+            console.error('Database query error:', dbError);
+            throw new Error('Authentication service unavailable');
+          }
+
+          if (userQuery.rows.length === 0) {
+            console.error('No user found with email:', credentials.email);
+            throw new Error('Invalid email or password');
+          }
+
+          const user = userQuery.rows[0];
+          console.log('Found user:', { 
+            id: user.id, 
+            email: user.email,
+            hasPassword: !!user.password
+          });
+          
+          // Verify password with detailed logging
+          let isValid = false;
+          const passwordToCheck = credentials.password;
+          const storedHash = user.password;
+          
+          console.log('Password check:', {
+            inputLength: passwordToCheck?.length,
+            storedHash: storedHash ? `${storedHash.substring(0, 10)}...` : 'none',
+            isBcrypt: storedHash?.startsWith('$2')
+          });
+          
+          try {
+            // First try bcrypt comparison if hash looks like bcrypt
+            if (storedHash?.startsWith('$2')) {
+              console.log('Attempting bcrypt comparison');
+              isValid = await bcrypt.compare(passwordToCheck, storedHash);
+              console.log('Bcrypt comparison result:', isValid);
+            } 
+            // Fallback to direct comparison (for development only)
+            if (!isValid && storedHash === passwordToCheck) {
+              console.log('Password matched via direct comparison');
+              isValid = true;
+            }
+          } catch (error) {
+            console.error('Password verification error:', error);
+            throw new Error('Error verifying password');
+          }
+          
+          if (!isValid) {
+            console.error('Invalid password for user:', user.email);
+            throw new Error('Invalid email or password');
+          }
+
+          // Generate access token
+          const accessToken = generateAccessToken(user.id);
+          
+          // Return user data without password but with access token
+          const { password, is_admin, ...userWithoutPassword } = user;
+          return {
+            ...userWithoutPassword,
+            role: is_admin ? 'admin' : 'user',
+            isAdmin: is_admin,
+            accessToken: accessToken
+          };
+        } catch (error) {
+          console.error('Authorization error:', error);
+          return null;
+        }
+      }
+    }
+  ],
+  
+  // Session and JWT configuration
+  session: {
+    strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
+  jwt: {
+    secret: process.env.NEXTAUTH_SECRET,
+  },
+  debug: process.env.NODE_ENV === 'development',
+  
+  // Callbacks for JWT and session handling
+  callbacks: {
+    async jwt({ token, user, account }) {
+      // Log the JWT callback for debugging
+      console.log('JWT Callback:', { token, user, account });
+      
+      // Initial sign in
+      if (account && user) {
+        console.log('JWT Callback - New sign in:', { 
+          userId: user.id, 
+          provider: account?.provider,
+          role: user.role,
+          isAdmin: (user as any).isAdmin
+        });
+        
+        // Create a new token with user info
+        const newToken = {
+          ...token,
+          id: user.id,
+          role: (user as any).role || 'user',
+          isAdmin: (user as any).isAdmin || (user as any).role === 'admin',
+          email: user.email,
+          name: user.name,
+          accessToken: (user as any).accessToken || ''
+        };
+        
+        console.log('JWT Callback - New token:', newToken);
+        return newToken;
+      }
+      
+      // For subsequent requests
+      return token;
+    },
+    async session({ session, token }) {
+      // Log the session callback for debugging
+      console.log('Session Callback - Input:', { session, token });
+      
+      // Send properties to the client
+      if (session.user) {
+        const isAdmin = Boolean(token.isAdmin) || token.role === 'admin';
+        const accessToken = token.accessToken || '';
+        
+        session.user = {
+          ...session.user,
+          id: token.id as string,
+          role: (token.role as string) || 'user',
+          isAdmin,
+          email: token.email as string,
+          name: token.name as string,
+          accessToken: accessToken as string
+        };
+      }
+      
+      console.log('Session Callback - Output:', {
+        userId: session.user?.id,
+        email: session.user?.email,
+        role: session.user?.role,
+        isAdmin: session.user?.isAdmin,
+        hasAccessToken: !!(session.user as any)?.accessToken,
+        expires: session.expires
+      });
+      
+      return session;
+    },
+    async redirect({ url, baseUrl }) {
+      // Use the configured base URL for redirects
+      const targetBaseUrl = baseUrl || baseUrl;
+      const dashboardUrl = `${targetBaseUrl}/event-scheduler/dashboard`;
+      
+      console.log('Redirect called with:', { url, baseUrl, targetBaseUrl });
+
+      console.log('Redirect called with:', { url, baseUrl, targetBaseUrl });
+
+      // If no URL was provided, redirect to dashboard
+      if (!url || url === '/') {
+        console.log('No URL provided, redirecting to dashboard');
+        return dashboardUrl;
+      }
+
+      // Handle relative URLs
+      if (url.startsWith('/')) {
+        // Prevent redirecting back to login after successful login
+        if (url === '/login' || url.startsWith('/login')) {
+          console.log('Prevented login redirect, going to dashboard');
+          return dashboardUrl;
+        }
+        // Handle relative URLs by appending to the base URL
+        const redirectUrl = `${targetBaseUrl}${url}`;
+        console.log('Handling relative URL, redirecting to:', redirectUrl);
+        return redirectUrl;
+      }
+
+      // Handle absolute URLs
+      try {
+        const urlObj = new URL(url);
+        const targetHost = new URL(targetBaseUrl).hostname;
+
+        // If this is a login URL, redirect to dashboard instead
+        if (urlObj.pathname === '/login' || urlObj.pathname.startsWith('/login')) {
+          console.log('Prevented login redirect, going to dashboard');
+          return dashboardUrl;
+        }
+
+        // Allow same-origin redirects
+        if (urlObj.hostname === targetHost || 
+            (!isProduction && (urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1'))) {
+          console.log('Allowing same-origin redirect to:', url);
+          return url;
+        }
+
+        console.log('Blocked cross-origin redirect, defaulting to dashboard');
+        return dashboardUrl;
+
+      } catch (e) {
+        console.error('Error parsing URL in redirect:', e);
+        return dashboardUrl;
+      }
+    },
+  },
+};
+
+// Check if NEXTAUTH_SECRET is set
+if (!process.env.NEXTAUTH_SECRET) {
+  console.warn('NEXTAUTH_SECRET is not set. This may cause authentication issues in production.');
+}
+
+// For Vercel deployment
+if (process.env.NODE_ENV === 'production' && !process.env.NEXTAUTH_URL) {
+  console.warn('NEXTAUTH_URL is not set in production. This may cause authentication issues.');
+}
+
+// Add debug logging for auth initialization
+console.log('Initializing NextAuth with config:', {
+  NODE_ENV: process.env.NODE_ENV,
+  NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+  NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET ? '***' : 'not set',
+  DATABASE_URL: process.env.DATABASE_URL ? '***' : 'not set'
+});
+
+const handler = NextAuth({
+  ...authOptions,
+  // Ensure we have a valid URL for callbacks
+  callbacks: {
+    ...authOptions.callbacks,
+    async redirect({ url, baseUrl }) {
+      // Allows relative callback URLs in development
+      if (url.startsWith('/')) {
+        return `${process.env.NEXTAUTH_URL || baseUrl}${url}`;
+      }
+      // Allows callback URLs on the same origin
+      else if (new URL(url).origin === baseUrl) {
+        return url;
+      }
+      return baseUrl;
+    },
+  },
+});
+
+export { handler as GET, handler as POST };
