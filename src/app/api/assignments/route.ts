@@ -253,4 +253,3 @@ export async function POST(request: Request) {
 }
 
 // PUT handler has been moved to /api/assignments/[id]/route.ts
-export { PUT } from './[id]/route';

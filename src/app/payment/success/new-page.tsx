@@ -106,7 +106,7 @@ const EventsList = dynamic<EventsListProps>(
   { loading: () => <Skeleton className="h-[600px] w-full" />, ssr: false }
 );
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api` : 'http://localhost:3000/api';
 
 export default function SuccessPage() {
   const router = useRouter();

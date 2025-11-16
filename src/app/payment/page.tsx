@@ -105,7 +105,7 @@ export default function PaymentPage() {
 
       // Send the payment data to the backend
       console.log('Sending request to backend...');
-      const response = await fetch('http://localhost:3001/api/registrations/payment', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/registrations/payment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

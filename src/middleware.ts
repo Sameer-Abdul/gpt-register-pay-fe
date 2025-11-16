@@ -13,17 +13,24 @@ const debug = (...args: any[]) => {
 const protectedRoutes = ['/event-scheduler/dashboard', '/dashboard', '/event-scheduler'];
 // Payment success page is public to allow users to see the success page after payment
 const publicPaymentRoutes = ['/payment/success'];
+// Public routes that don't require authentication
 const publicRoutes = [
-  '/event-scheduler/login', 
-  '/login', 
-  '/register', 
-  '/test-auth', 
-  '/api/auth',
+  '/login',
+  '/register',
+  '/confirmation',
+  '/payment',
+  '/success',
+  '/registration-success',
+  // Static assets and API routes
   '/_next',
   '/favicon.ico',
   '/images',
   '/fonts',
-  '/assets'
+  '/assets',
+  '/api/auth',
+  // Keep existing routes for backward compatibility
+  '/event-scheduler/login',
+  '/test-auth'
 ];
 
 const protectedApiRoutes = ['/api/tenants'];

@@ -1,13 +1,26 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: any
 ) {
-  return NextResponse.json({
-    success: true,
-    message: 'Test route is working',
-    id: params.id,
-    timestamp: new Date().toISOString()
-  });
+  try {
+    const { id } = context.params;
+
+    return NextResponse.json({
+      success: true,
+      message: "Test endpoint works",
+      id,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err: any) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Failed to process request",
+        details: err.message
+      },
+      { status: 500 }
+    );
+  }
 }

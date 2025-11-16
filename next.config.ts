@@ -1,22 +1,20 @@
 import type { NextConfig } from "next";
 
-// Configuration for both Webpack and Turbopack
+// Explicitly disable Turbopack to use webpack
+process.env.TURBOPACK = '0';
+
 const nextConfig: NextConfig = {
-  // Explicitly enable Turbopack with empty config
-  turbopack: {},
-  // Enable React compiler
   reactCompiler: true,
   
   // Configure CORS headers
   async headers() {
     return [
       {
-        // Apply these headers to all routes
         source: '/:path*',
         headers: [
           {
             key: 'Access-Control-Allow-Origin',
-            value: process.env.NEXTAUTH_CORS_ORIGINS || 'http://localhost:3000,http://localhost:3001',
+            value: process.env.NEXTAUTH_URL || 'https://gpt-register-pay-be.onrender.com',
           },
           {
             key: 'Access-Control-Allow-Methods',
@@ -35,9 +33,8 @@ const nextConfig: NextConfig = {
     ];
   },
   
-  // Proxy API requests to NestJS backend in development
+  // Proxy API requests to NestJS backend
   async rewrites() {
-    const isProduction = process.env.NODE_ENV === 'production';
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
     
     return [
@@ -46,23 +43,23 @@ const nextConfig: NextConfig = {
         source: '/api/assignments/:path*',
         destination: `${apiUrl}/assignments/:path*`,
       },
-      // Auth routes - handled by NextAuth in the frontend
+      // Auth routes
       {
         source: '/api/auth/:path*',
         destination: '/api/auth/:path*',
       },
-      // In production, you might want to proxy all /api/* to your backend
-      ...(isProduction ? [{
+      // Proxy all other API routes to the backend
+      {
         source: '/api/:path*',
         destination: `${apiUrl}/:path*`,
-      }] : []),
+      }
     ];
   },
   
   // Environment variables exposed to the browser
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
-    NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://gpt-register-pay-be.onrender.com',
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'https://gpt-register-pay-be.onrender.com',
   },
   
   // Webpack configuration (only used when not using Turbopack)
@@ -80,19 +77,9 @@ const nextConfig: NextConfig = {
     return config;
   },
   
-  // Experimental features configuration
-  experimental: {
-    serverComponentsExternalPackages: [],
-    serverActions: {
-      bodySizeLimit: '10mb',
-    },
-  },
-  
-  // Disable React Strict Mode to prevent double rendering in development
-  reactStrictMode: false,
-  
-  // Image optimization configuration
+  // Image optimization
   images: {
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
@@ -100,12 +87,20 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'http',
-        hostname: 'localhost',
+        hostname: '**',
       },
     ],
   },
-  // Remove the deprecated 'target' option as it's not needed in modern Next.js
-  // Remove the deprecated 'future' option as it's now the default
+  
+  // Configure experimental features
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '10mb',
+    },
+  },
+  
+  // Disable React Strict Mode to prevent double rendering in development
+  reactStrictMode: false,
 };
 
 export default nextConfig;
