@@ -167,7 +167,7 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET || 'your-secret-key',
   
   // Configure cookies
-  useSecureCookies: false, // Disable secure cookies in development
+  useSecureCookies: isProduction, // Enable secure cookies in production
   cookies: {
     sessionToken: {
       name: isProduction ? '__Secure-next-auth.session-token' : 'next-auth.session-token',
@@ -175,8 +175,8 @@ export const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: false, // Disable secure in development
-        domain: 'localhost', // Explicitly set domain for local development
+        secure: isProduction, // secure only on Vercel
+        // No domain specified for cross-domain compatibility
         maxAge: 30 * 24 * 60 * 60, // 30 days
       },
     },
