@@ -25,10 +25,10 @@ const analyzeWithOllama = async (prompt: string) => {
 
 export async function POST(
   request: NextRequest,
-  context: any       // ← DO NOT TYPE THIS; LET NEXT.JS HANDLE IT
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = context.params;
+    const { id } = await context.params;
 
     const assignmentId = parseInt(id, 10);
     if (isNaN(assignmentId)) {
