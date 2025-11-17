@@ -10,7 +10,8 @@
     try {
       // Get the authorization header
       const hdr = await headers();
-      const authHeader = headers().get('authorization');
+const authHeader = hdr.get('authorization');
+
       console.log('Auth header:', authHeader ? 'Present' : 'Missing');
       
       // Try to get session if using cookies
