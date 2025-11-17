@@ -57,7 +57,8 @@ const authHeader = hdr.get('authorization');
 
       // Get the API URL from environment variables
       const apiUrl = process.env.NEXT_PUBLIC_BACKEND_URL!;
-      const apiEndpoint = `${apiUrl}/assignments/merit`;
+      const apiEndpoint = `${apiUrl}/assignments/merit-list`;
+
       
       console.log('Fetching from API:', apiEndpoint, 'with token:', accessToken ? 'present' : 'missing');
       
