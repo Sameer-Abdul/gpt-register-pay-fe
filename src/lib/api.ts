@@ -2,7 +2,7 @@ import axios, { AxiosError, AxiosResponse } from 'axios';
 import { toast } from '@/components/ui/use-toast';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: process.env.NEXT_PUBLIC_BACKEND_URL,
   headers: {
     'Content-Type': 'application/json',
   },
