@@ -102,11 +102,9 @@ export default function DashboardLayout({
     }
     
     // Sign out using NextAuth
-    await signOut({
-      redirect: false, // Prevent automatic redirect
-      callbackUrl: '/event-scheduler/login', // Ensure correct URL in production
-    });
-    
+    await signOut({ callbackUrl: `${window.location.origin}/event-scheduler/login` });
+
+
     // Redirect to login page manually
     router.push('/event-scheduler/login');
     router.refresh(); // Refresh the page to clear session/cookies

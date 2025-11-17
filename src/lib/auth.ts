@@ -169,18 +169,19 @@ export const authOptions: NextAuthOptions = {
   // Configure cookies
   useSecureCookies: isProduction, // Enable secure cookies in production
   cookies: {
-    sessionToken: {
-      name: isProduction ? '__Secure-next-auth.session-token' : 'next-auth.session-token',
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: isProduction, // secure only on Vercel
-        // No domain specified for cross-domain compatibility
-        maxAge: 30 * 24 * 60 * 60, // 30 days
-      },
+  sessionToken: {
+    name: '__Secure-next-auth.session-token',
+    options: {
+      httpOnly: true,
+      sameSite: 'none',   // This is important for cross-domain cookies
+      path: '/',
+      secure: isProduction,
+      domain: 'gpt-register-pay-fe-bqh5.vercel.app',  // Set the domain here
+      maxAge: 30 * 24 * 60 * 60,
     },
   },
+},
+
   
   // Debug configuration
   debug: process.env.NODE_ENV === 'development' || process.env.NEXTAUTH_DEBUG === 'true',
