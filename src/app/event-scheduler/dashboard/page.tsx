@@ -28,9 +28,9 @@ export default function DashboardPage() {
     // If we get here, we have a valid session - redirect to calendar
     console.log('Dashboard mounted with session, redirecting to calendar');
     router.replace('/event-scheduler/dashboard/calendar');
-    
-    // Force a session check in the background
-    const checkSession = async () => {
+
+    // Set up periodic session check
+    const interval = setInterval(async () => {
       try {
         const response = await fetch('/api/auth/session');
         const data = await response.json();
@@ -43,14 +43,9 @@ export default function DashboardPage() {
       } catch (err) {
         console.error('Session check failed:', err);
       }
-    };
+    }, 5 * 60 * 1000); // Check every 5 minutes
 
-    checkSession();
-
-    // Set up periodic session check
-    const interval = setInterval(checkSession, 5 * 60 * 1000); // Check every 5 minutes
-
-    return () => clearInterval(interval);
+    return () => clearInterval(interval); // Clean up the interval on component unmount
   }, [status, session, router, searchParams]);
 
   // Show loading spinner while redirecting

@@ -94,14 +94,20 @@ export default function DashboardLayout({
   const handleLogout = async () => {
   try {
     setIsLoggingOut(true);
+    
     // Clear any client-side storage
     if (typeof window !== 'undefined') {
       sessionStorage.removeItem('user');
       localStorage.removeItem('user');
     }
+    
     // Sign out using NextAuth
-    await signOut({ callbackUrl: '/event-scheduler/login' }); // Make sure the callback URL is correct
-    // Redirect to login page
+    await signOut({
+      redirect: false, // Prevent automatic redirect
+      callbackUrl: '/event-scheduler/login', // Ensure correct URL in production
+    });
+    
+    // Redirect to login page manually
     router.push('/event-scheduler/login');
     router.refresh(); // Refresh the page to clear session/cookies
   } catch (error) {
@@ -110,6 +116,7 @@ export default function DashboardLayout({
     setIsLoggingOut(false);
   }
 };
+
 
 
   if (!isClient) {
