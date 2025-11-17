@@ -92,24 +92,25 @@ export default function DashboardLayout({
   }, [status, router, session]);
 
   const handleLogout = async () => {
-    try {
-      setIsLoggingOut(true);
-      // Clear any client-side storage
-      if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('user');
-        localStorage.removeItem('user');
-      }
-      // Sign out using NextAuth
-      await signOut({ redirect: false });
-      // Redirect to login page
-      router.push('/event-scheduler/login');
-      router.refresh();
-    } catch (error) {
-      console.error('Error during sign out:', error);
-    } finally {
-      setIsLoggingOut(false);
+  try {
+    setIsLoggingOut(true);
+    // Clear any client-side storage
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('user');
+      localStorage.removeItem('user');
     }
-  };
+    // Sign out using NextAuth
+    await signOut({ callbackUrl: '/event-scheduler/login' }); // Make sure the callback URL is correct
+    // Redirect to login page
+    router.push('/event-scheduler/login');
+    router.refresh(); // Refresh the page to clear session/cookies
+  } catch (error) {
+    console.error('Error during sign out:', error);
+  } finally {
+    setIsLoggingOut(false);
+  }
+};
+
 
   if (!isClient) {
     return null;
