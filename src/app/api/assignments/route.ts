@@ -102,15 +102,15 @@ export async function GET(request: Request) {
         a.file_name,
         a.file_size,
         a.file_type,
-        a.register_state as state,
-        a.register_district as district,
-        a.register_mandal as mandal,
+        a.state,
+        a.district,
+        a.mandal,
         a.submission_date,
         a.rating,
         a.created_at,
         a.context,
-        r.first_name,
-        r.last_name,
+        a.first_name,
+        a.last_name,
         r.email as user_email
       FROM assignments a
       LEFT JOIN register r ON a.register_id = r.id

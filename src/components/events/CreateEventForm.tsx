@@ -85,7 +85,7 @@ export default function CreateEventForm() {
       ],
     },
     validationSchema: eventSchema,
-    onSubmit: async (values) => {
+    onSubmit: async (values, { resetForm }) => {
       try {
         setIsSubmitting(true);
         const response = await fetch('/api/events', {
@@ -108,8 +108,10 @@ export default function CreateEventForm() {
           variant: 'default',
         });
 
-        // Redirect to events list or calendar view
-        window.location.href = '/payment/success?tab=calendar';
+        // Reset the form to initial values
+        resetForm();
+        setDate(new Date());
+
       } catch (error) {
         console.error('Error creating event:', error);
         toast({

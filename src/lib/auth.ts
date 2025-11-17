@@ -426,58 +426,27 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      // Use the configured base URL for redirects
-      const targetBaseUrl = baseUrl || baseUrl;
-      const dashboardUrl = `${targetBaseUrl}/event-scheduler/dashboard`;
-      
-      console.log('Redirect called with:', { url, baseUrl, targetBaseUrl });
+      const loginUrl = `${baseUrl}/event-scheduler/login`;
+      const userDashboard = `${baseUrl}/event-scheduler/dashboard`;
+      const adminDashboard = `${baseUrl}/admin-dashboard`;
 
-      console.log('Redirect called with:', { url, baseUrl, targetBaseUrl });
-
-      // If no URL was provided, redirect to dashboard
-      if (!url || url === '/') {
-        console.log('No URL provided, redirecting to dashboard');
-        return dashboardUrl;
+      // LOGOUT FIX — always go to login page
+      if (url.includes("/api/auth/signout")) {
+        return loginUrl;
       }
 
-      // Handle relative URLs
-      if (url.startsWith('/')) {
-        // Prevent redirecting back to login after successful login
-        if (url === '/login' || url.startsWith('/login')) {
-          console.log('Prevented login redirect, going to dashboard');
-          return dashboardUrl;
-        }
-        // Handle relative URLs by appending to the base URL
-        const redirectUrl = `${targetBaseUrl}${url}`;
-        console.log('Handling relative URL, redirecting to:', redirectUrl);
-        return redirectUrl;
+      // After login
+      if (url.includes("/callback/credentials")) {
+        // role-based redirect supported later on session load
+        return userDashboard;
       }
 
-      // Handle absolute URLs
-      try {
-        const urlObj = new URL(url);
-        const targetHost = new URL(targetBaseUrl).hostname;
-
-        // If this is a login URL, redirect to dashboard instead
-        if (urlObj.pathname === '/login' || urlObj.pathname.startsWith('/login')) {
-          console.log('Prevented login redirect, going to dashboard');
-          return dashboardUrl;
-        }
-
-        // Allow same-origin redirects
-        if (urlObj.hostname === targetHost || 
-            (!isProduction && (urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1'))) {
-          console.log('Allowing same-origin redirect to:', url);
-          return url;
-        }
-
-        console.log('Blocked cross-origin redirect, defaulting to dashboard');
-        return dashboardUrl;
-
-      } catch (e) {
-        console.error('Error parsing URL in redirect:', e);
-        return dashboardUrl;
+      // Allow internal paths
+      if (url.startsWith("/")) {
+        return `${baseUrl}${url}`;
       }
+
+      return baseUrl;
     },
   },
 };
