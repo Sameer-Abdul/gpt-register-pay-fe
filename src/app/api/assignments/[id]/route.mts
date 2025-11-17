@@ -20,39 +20,73 @@ export async function GET() {
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  const { id } = await params;
-  console.log(`PUT /api/assignments/${id} called`);
+  const { id } = params;
+  console.log('🔍 PUT /api/assignments/[id] - ID:', id);
 
   try {
     const session = await getServerSession(authOptions);
-
     if (!session?.user?.email) {
+      console.log('🔒 Unauthorized: No session');
       return NextResponse.json(
-        { error: 'Unauthorized', message: 'You must be logged in to access this resource' },
+        { 
+          success: false,
+          error: 'Unauthorized',
+          message: 'You must be logged in to access this resource' 
+        },
         { status: 401 }
       );
     }
 
-    const body = await request.json();
+    // Log the request body
+    const body = await request.json().catch(() => ({}));
+    console.log('📥 Request body:', body);
     const { rating } = body;
 
+    // Validate rating
     if (rating === undefined || rating === null) {
+      console.log('❌ Missing rating in request');
       return NextResponse.json(
-        { error: 'Bad Request', message: 'Rating is required' },
+        { 
+          success: false,
+          error: 'Bad Request',
+          message: 'Rating is required' 
+        },
         { status: 400 }
       );
     }
 
     const ratingValue = Number(rating);
     if (isNaN(ratingValue) || ratingValue < 0 || ratingValue > 10) {
+      console.log('❌ Invalid rating value:', rating);
       return NextResponse.json(
-        { error: 'Bad Request', message: 'Rating must be between 0 and 10' },
+        { 
+          success: false,
+          error: 'Bad Request',
+          message: 'Rating must be a number between 0 and 10' 
+        },
         { status: 400 }
       );
     }
 
+    // Check if assignment exists first
+    const checkQuery = 'SELECT id FROM assignments WHERE id = $1';
+    const checkResult = await pool.query(checkQuery, [id]);
+
+    if (checkResult.rowCount === 0) {
+      console.log(`❌ Assignment not found with ID: ${id}`);
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Not Found',
+          message: 'Assignment not found' 
+        },
+        { status: 404 }
+      );
+    }
+
+    // Update the assignment
     const result = await pool.query(
       `UPDATE assignments 
        SET rating = $1, updated_at = NOW() 
@@ -61,13 +95,7 @@ export async function PUT(
       [ratingValue, id]
     );
 
-    if (result.rowCount === 0) {
-      return NextResponse.json(
-        { error: 'Not Found', message: 'Assignment not found' },
-        { status: 404 }
-      );
-    }
-
+    console.log('✅ Update result:', result.rows[0]);
     return NextResponse.json({
       success: true,
       message: 'Rating updated successfully',
@@ -75,8 +103,10 @@ export async function PUT(
     });
 
   } catch (error) {
+    console.error('🔥 Error in PUT /api/assignments/[id]:', error);
     return NextResponse.json(
       {
+        success: false,
         error: 'Internal Server Error',
         message: 'Failed to update assignment rating',
         details: error instanceof Error ? error.message : 'Unknown error'
