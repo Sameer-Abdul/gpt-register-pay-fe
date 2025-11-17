@@ -357,14 +357,19 @@ export const authOptions: NextAuthOptions = {
           console.log('Authentication successful for user:', user.email);
           
           // Return user object (without password) that will be encoded in the JWT
-          return {
-            id: user.id.toString(),
-            email: user.email,
-            name: user.name || user.email.split('@')[0],
-            isAdmin: user.is_admin,
-            role: user.is_admin ? 'admin' : 'user',
-            tenantId: user.tenant_id
-          };          } catch (error: any) {
+          // Generate access token for session + backend API calls
+const accessToken = generateAccessToken(user.id);
+
+return {
+  id: user.id.toString(),
+  email: user.email,
+  name: user.name || user.email.split('@')[0],
+  isAdmin: user.is_admin,
+  role: user.is_admin ? 'admin' : 'user',
+  tenantId: user.tenant_id,
+  accessToken,   // VERY IMPORTANT
+};
+          } catch (error: any) {
             console.error('Authorization error:', error);
             // If it's a license error, rethrow it with the original message
             if (error.name === 'LicenseExpiredError' || error.message?.includes('LICENSE_EXPIRED')) {
@@ -382,49 +387,35 @@ export const authOptions: NextAuthOptions = {
   
   // Callbacks for JWT and session handling
   callbacks: {
-    async jwt({ token, user, account }) {
-      // Initial sign in
-      if (account && user) {
-        // Add user info to the token
-        token.id = user.id;
-        token.email = user.email;
-        token.name = user.name;
-        token.role = user.role;
-        token.isAdmin = user.isAdmin;
-        token.tenantId = user.tenantId;
-        token.accessToken = user.accessToken;
-      }
-      return token;
-    },
+    async jwt({ token, user }) {
+  // First-time login
+  if (user) {
+    token.id = user.id;
+    token.email = user.email;
+    token.name = user.name;
+    token.role = user.role;
+    token.isAdmin = user.isAdmin;
+    token.tenantId = user.tenantId;
+
+    // NEW: store access token
+    token.accessToken = user.accessToken;
+  }
+
+  return token;
+},
     async session({ session, token }) {
-      // Log the session callback for debugging
-      console.log('Session Callback - Input:', { session, token });
-      
-      // Send properties to the client
-      if (session.user) {
-        session.user = {
-          ...session.user,
-          id: token.id as string,
-          role: (token.role as string) || 'user',
-          isAdmin: token.isAdmin as boolean,
-          email: token.email as string,
-          name: token.name as string,
-          accessToken: token.accessToken as string,
-          tenantId: token.tenantId as string
-        };
-      }
-      
-      console.log('Session Callback - Output:', {
-        userId: session.user?.id,
-        email: session.user?.email,
-        role: session.user?.role,
-        isAdmin: session.user?.isAdmin,
-        hasAccessToken: !!(session.user as any)?.accessToken,
-        expires: session.expires
-      });
-      
-      return session;
-    },
+  session.user.id = token.id as string;
+  session.user.email = token.email as string;
+  session.user.name = token.name as string;
+  session.user.role = token.role as string;
+  session.user.isAdmin = token.isAdmin as boolean;
+  session.user.tenantId = token.tenantId as string;
+
+  // NEW: add access token for frontend/API routes
+  session.user.accessToken = token.accessToken as string;
+
+  return session;
+},
     async redirect({ url, baseUrl }) {
       const loginUrl = `${baseUrl}/event-scheduler/login`;
       const userDashboard = `${baseUrl}/event-scheduler/dashboard`;
