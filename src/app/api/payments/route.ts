@@ -26,17 +26,28 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const utrNumber = formData.get('utrNumber') as string;
     const registrationId = formData.get('registrationId') as string;
-    const file = formData.get('file') as File | null;
+    const file = formData.get('file');
+    
+    // Type-safe file info logging
+    const fileInfo = file && file instanceof Blob ? {
+      name: file instanceof File ? file.name : 'blob',
+      type: file.type,
+      size: file.size
+    } : null;
+
+    console.log('Received form data:', {
+      utrNumber,
+      registrationId,
+      hasFile: !!file,
+      fileType: fileInfo?.type,
+      fileSize: fileInfo?.size
+    });
 
     console.log('Received payment submission:', { 
       utrNumber, 
       registrationId,
       hasFile: !!file,
-      fileInfo: file ? { 
-        name: file.name, 
-        type: file.type, 
-        size: file.size 
-      } : null
+      fileInfo
     });
 
     if (!utrNumber || !registrationId) {
@@ -97,17 +108,33 @@ export async function POST(request: Request) {
       console.log('Registration updated successfully');
 
       // 4. Handle file upload if present (outside of transaction)
-      if (file) {
+      if (file && file instanceof Blob) {
         try {
           const bytes = await file.arrayBuffer();
           const fileBuffer = Buffer.from(bytes);
-          const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'payments');
-          await mkdir(uploadDir, { recursive: true });
           
-          const fileExtension = file.name.split('.').pop();
+          // Ensure uploads directory exists
+          const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'payments');
+          try {
+            await mkdir(uploadDir, { recursive: true });
+            console.log(`Upload directory exists: ${uploadDir}`);
+          } catch (dirError) {
+            console.error('Error creating upload directory:', dirError);
+            throw new Error('Failed to create upload directory');
+          }
+          
+          // Get file extension from MIME type if name is not available
+          let fileExtension = 'bin';
+          if (file.type) {
+            const ext = file.type.split('/').pop();
+            if (ext) fileExtension = ext;
+          }
+          
           const fileName = `${paymentId}.${fileExtension}`;
           const filePath = path.join('uploads', 'payments', fileName);
           const fullPath = path.join(process.cwd(), 'public', filePath);
+          
+          console.log(`Saving file to: ${fullPath}`);
           
           await writeFile(fullPath, fileBuffer);
           
