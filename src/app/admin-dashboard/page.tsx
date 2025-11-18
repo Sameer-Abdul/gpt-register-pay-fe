@@ -419,7 +419,7 @@ export default function AdminDashboard() {
       // Update the assignments with the new rating after successful save
       setAssignments(prev => 
         prev.map(assignment => 
-          assignment.id === assignmentId 
+          assignment.id === id 
             ? { ...assignment, rating: newRating } 
             : assignment
         )
@@ -428,7 +428,7 @@ export default function AdminDashboard() {
       // Clear the local rating state since it's now saved
       setRatings(prev => ({
         ...prev,
-        [assignmentId]: undefined
+        [id]: undefined
       }));
 
       toast({

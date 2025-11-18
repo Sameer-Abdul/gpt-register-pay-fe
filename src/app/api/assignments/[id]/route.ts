@@ -137,9 +137,9 @@ export async function PUT(
 
       const updateResult = await client.query(
         `UPDATE assignments 
-         SET rating = $1, updated_at = NOW() 
+         SET rating = $1
          WHERE id = $2 
-         RETURNING id, rating, updated_at`,
+         RETURNING id, rating`,
         [rating, id]
       );
 
