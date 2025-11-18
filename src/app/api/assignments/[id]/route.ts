@@ -35,17 +35,17 @@ const pool = new Pool({
 
 export async function PUT(
   request: NextRequest,
-  context: { params: { id: string } }
+  params: { id: string }
 ): Promise<NextResponse> {
   console.log('PUT /api/assignments/[id] - Request received', {
     url: request.url,
     method: request.method,
     headers: Object.fromEntries(request.headers.entries()),
-    params: context.params
+    params
   });
 
   // Get the ID from the resolved params
-  const id = context.params.id;
+  const id = params.id;
 
   // Apply rate limiting
   if (ratelimit) {
@@ -180,10 +180,10 @@ export async function PUT(
 
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
-) {
+  { params }: { params: { id: string } }
+): Promise<NextResponse> {
   try {
-    const id = context.params.id;
+    const id = params.id;
     
     if (!id || isNaN(Number(id)) || Number(id) <= 0) {
       return new NextResponse(
