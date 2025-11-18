@@ -60,9 +60,17 @@ export async function GET() {
 
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: { id: string } } | { params: Promise<{ id: string }> }
 ) {
-  const { id } = await context.params;
+  let id: string;
+  
+  // Handle both sync and async params
+  if (context.params instanceof Promise) {
+    const params = await context.params;
+    id = params.id;
+  } else {
+    id = context.params.id;
+  }
   
   try {
     // Add request logging
