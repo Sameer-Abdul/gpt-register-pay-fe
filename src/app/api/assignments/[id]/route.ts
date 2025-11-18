@@ -35,17 +35,17 @@ const pool = new Pool({
 
 export async function PUT(
   request: NextRequest,
-  params: { id: string }
+  context: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   console.log('PUT /api/assignments/[id] - Request received', {
     url: request.url,
     method: request.method,
     headers: Object.fromEntries(request.headers.entries()),
-    params
+    params: await context.params
   });
 
   // Get the ID from the resolved params
-  const id = params.id;
+  const { id } = await context.params;
 
   // Apply rate limiting
   if (ratelimit) {
