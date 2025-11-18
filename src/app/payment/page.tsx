@@ -35,20 +35,20 @@ export default function PaymentPage() {
   };
 
   const validationSchema = Yup.object().shape({
-  utrNumber: Yup.string()
-    .required('UTR number is required')
-    .matches(/^[a-zA-Z0-9]{12,20}$/, 'UTR number must be 12-20 alphanumeric characters'),
-  paymentScreenshot: Yup.mixed<File>()
-    .required('Payment screenshot is required')
-    .test('fileSize', 'File size is too large (max 5MB)', (value) => {
-      if (!(value instanceof File)) return false;
-      return value.size <= 5 * 1024 * 1024; // 5MB
-    })
-    .test('fileType', 'Only image and PDF files are allowed', (value) => {
-      if (!(value instanceof File)) return false;
-      return ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'].includes(value.type);
-    })
-});
+    utrNumber: Yup.string()
+      .required('UTR number is required')
+      .matches(/^[0-9]{12}$/, 'UTR number must be exactly 12 digits'),
+    paymentScreenshot: Yup.mixed<File>()
+      .required('Payment screenshot is required')
+      .test('fileSize', 'File size is too large (max 5MB)', (value) => {
+        if (!(value instanceof File)) return false;
+        return value.size <= 5 * 1024 * 1024; // 5MB
+      })
+      .test('fileType', 'Only image and PDF files are allowed', (value) => {
+        if (!(value instanceof File)) return false;
+        return ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'].includes(value.type);
+      })
+  });
 
   const handleSubmit = async (
     values: FormValues,
@@ -77,7 +77,7 @@ export default function PaymentPage() {
       // Create FormData
       const formData = new FormData();
       formData.append('utrNumber', values.utrNumber);
-      formData.append('registrationId', registerId);
+      formData.append('registerId', registerId);
       formData.append('file', values.paymentScreenshot);
 
       // Debug: Log FormData contents

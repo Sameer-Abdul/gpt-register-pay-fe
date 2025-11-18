@@ -11,7 +11,11 @@ const parsePdf = async (buffer: Buffer): Promise<string> => {
 };
 
 const analyzeWithOllama = async (prompt: string) => {
-  const response = await fetch("http://localhost:11434/api/generate", {
+  const baseUrl =
+    process.env.OLLAMA_BASE_URL ||
+    process.env.NEXT_PUBLIC_OLLAMA_BASE_URL ||
+    "http://localhost:11434";
+  const response = await fetch(`${baseUrl}/api/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

@@ -54,6 +54,11 @@ export async function POST(request: Request) {
       throw new Error('UTR number and registration ID are required');
     }
 
+    // Validate UTR number format: exactly 12 numeric digits
+    if (!/^[0-9]{12}$/.test(utrNumber)) {
+      throw new Error('UTR number must be exactly 12 numeric digits');
+    }
+
     // Start transaction
     await client.query('BEGIN');
 

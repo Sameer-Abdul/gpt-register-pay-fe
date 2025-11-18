@@ -16,7 +16,7 @@ interface PaymentFormValues {
 const paymentSchema = Yup.object().shape({
   utrNumber: Yup.string()
     .required('UTR number is required')
-    .matches(/^[a-zA-Z0-9]*$/, 'Invalid UTR number format'),
+    .matches(/^[0-9]{12}$/, 'UTR number must be exactly 12 digits'),
   screenshot: Yup.mixed<File>()
     .required('Payment screenshot is required')
     .test('fileSize', 'File size is too large (max 2MB)', (value) => {

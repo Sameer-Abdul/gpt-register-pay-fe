@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { Pool } from 'pg';
+import pool from '@/lib/db';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 
@@ -27,11 +27,6 @@ const securityHeaders = {
 };
 
 const MAX_REQUEST_SIZE = 5 * 1024 * 1024; // 5MB
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
 
 export async function PUT(
   request: NextRequest,
@@ -103,12 +98,24 @@ export async function PUT(
     
     const { rating } = body;
 
-    if (rating === undefined) {
+    if (rating === undefined || rating === null) {
       return new NextResponse(
         JSON.stringify({
           success: false,
           error: 'Bad Request',
           message: 'Rating is required'
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...securityHeaders } }
+      );
+    }
+
+    const numericRating = Number(rating);
+    if (Number.isNaN(numericRating) || numericRating < 0 || numericRating > 10) {
+      return new NextResponse(
+        JSON.stringify({
+          success: false,
+          error: 'Bad Request',
+          message: 'Rating must be a number between 0 and 10'
         }),
         { status: 400, headers: { 'Content-Type': 'application/json', ...securityHeaders } }
       );
@@ -140,7 +147,7 @@ export async function PUT(
          SET rating = $1
          WHERE id = $2 
          RETURNING id, rating`,
-        [rating, id]
+        [numericRating, id]
       );
 
       await client.query('COMMIT');

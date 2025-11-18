@@ -282,13 +282,8 @@ export default function AdminDashboard() {
     setSavingRatings(prev => ({ ...prev, [assignmentId]: true }));
     
     try {
-      // First check if Ollama is available
-      const statusResponse = await fetch('http://localhost:11434/api/version');
-      if (!statusResponse.ok) {
-        throw new Error('Ollama server is not running. Please make sure Ollama is installed and running on port 11434');
-      }
-
-      const response = await fetch(`/api/assignments/${assignmentId}/analyze`, {
+      // Call the server-side analysis endpoint which talks to Ollama
+      const response = await fetch(`/api/assignments/analyze/${assignmentId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -302,13 +297,28 @@ export default function AdminDashboard() {
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Server responded with status ${response.status}`);
+        throw new Error(errorData.message || errorData.error || `Server responded with status ${response.status}`);
       }
       
       const data = await response.json();
       
-      // Handle both response formats (aiRating or rating)
-      const rating = data.aiRating || data.rating;
+      // Handle multiple possible response formats (Nest / Next)
+      const rating =
+        typeof data.aiRating === 'number'
+          ? data.aiRating
+          : typeof data.rating === 'number'
+            ? data.rating
+            : typeof data.data?.rating === 'number'
+              ? data.data.rating
+              : undefined;
+      const score =
+        typeof data.score === 'number'
+          ? data.score
+          : typeof data.data?.score === 'number'
+            ? data.data.score
+            : typeof rating === 'number'
+              ? rating * 10
+              : undefined;
       
       if (typeof rating !== 'number' || rating < 0 || rating > 10) {
         throw new Error('Invalid rating received from AI analysis');
@@ -331,7 +341,9 @@ export default function AdminDashboard() {
 
       toast({
         title: 'AI Analysis Complete',
-        description: `AI Rating: ${data.rating}/10 (Score: ${data.score})`,
+        description: score
+          ? `Ollama has provided a rating: ${rating}/10 (Score: ${score})`
+          : `Ollama has provided a rating: ${rating}/10`,
       });
     } catch (error: unknown) {
       console.error('Error analyzing assignment:', error);
