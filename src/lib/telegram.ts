@@ -6,12 +6,46 @@ import { query } from './db';
 // Function to get chat ID by phone number
 async function getChatIdByPhoneNumber(phoneNumber: string): Promise<string | null> {
   try {
-    const formattedNumber = formatPhoneNumber(phoneNumber);
+    const rawInput = String(phoneNumber).trim();
+    const formattedNumber = formatPhoneNumber(rawInput);
+    const digits = formattedNumber.replace(/\D/g, '');
+    const lastTenDigits = digits.slice(-10);
+
+    console.log('[Telegram] Normalizing phone for lookup:', {
+      rawInput,
+      formattedNumber,
+      lastTenDigits,
+    });
+
     const result = await query(
-      'SELECT chat_id FROM telegram_links WHERE phone_number = $1 LIMIT 1',
-      [formattedNumber]
+      `SELECT chat_id, phone_number
+       FROM telegram_links
+       WHERE phone_number = $1
+          OR phone_number = $2
+          OR RIGHT(phone_number, 10) = $3
+       LIMIT 1`,
+      [formattedNumber, lastTenDigits, lastTenDigits]
     );
-    return result.rows[0]?.chat_id?.toString() || null;
+
+    if (!result.rows[0]?.chat_id) {
+      console.log('[Telegram] No Telegram link found for phone', {
+        rawInput,
+        formattedNumber,
+        lastTenDigits,
+      });
+      return null;
+    }
+
+    const row = result.rows[0];
+    console.log('[Telegram] Found Telegram link', {
+      rawInput,
+      formattedNumber,
+      lastTenDigits,
+      storedPhoneNumber: row.phone_number,
+      chatId: row.chat_id,
+    });
+
+    return row.chat_id.toString();
   } catch (error) {
     console.error('Error getting chat ID:', error);
     return null;
@@ -80,17 +114,16 @@ export async function sendTelegramMessage(
     // If it's a phone number, try to find the linked chat ID
     if (typeof chatIdOrPhone === 'string' && /^\+?[0-9\s\-()]+$/.test(chatIdOrPhone)) {
       console.log(`[Telegram] Looking up chat ID for phone: ${chatIdOrPhone}`);
-      const formattedPhone = formatPhoneNumber(chatIdOrPhone);
-      chatId = await getChatIdByPhoneNumber(formattedPhone);
+      chatId = await getChatIdByPhoneNumber(chatIdOrPhone);
       
       if (!chatId) {
-        console.log(`[Telegram] No linked chat ID found for phone number: ${formattedPhone}`);
+        console.log(`[Telegram] No linked chat ID found for phone number: ${chatIdOrPhone}`);
         return { 
           success: false, 
           error: 'No linked Telegram account found. User needs to run /link command in the bot first.' 
         };
       }
-      console.log(`[Telegram] Found chat ID ${chatId} for phone ${formattedPhone}`);
+      console.log(`[Telegram] Found chat ID ${chatId} for phone ${chatIdOrPhone}`);
     } else {
       // It's already a chat ID
       chatId = chatIdOrPhone;
