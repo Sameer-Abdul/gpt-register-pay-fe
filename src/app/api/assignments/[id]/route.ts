@@ -180,10 +180,11 @@ export async function PUT(
 
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
-    const id = context.params.id;
+    const params = await context.params;
+    const id = params.id;
     
     if (!id || isNaN(Number(id)) || Number(id) <= 0) {
       return new NextResponse(
