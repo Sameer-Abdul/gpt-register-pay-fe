@@ -33,8 +33,7 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// Add this type to handle the context parameter
-type RouteContext = {
+type Context = {
   params: {
     id: string;
   };
@@ -42,8 +41,10 @@ type RouteContext = {
 
 export async function PUT(
   request: NextRequest,
-  context: RouteContext
+  { params }: Context
 ): Promise<NextResponse> {
+  const { id } = params;
+
   // Apply rate limiting
   if (ratelimit) {
     const forwarded = request.headers.get('x-forwarded-for') || '';
@@ -70,8 +71,6 @@ export async function PUT(
       );
     }
   }
-
-  const { id } = context.params;
 
   if (!id || isNaN(Number(id)) || Number(id) <= 0) {
     return new NextResponse(
