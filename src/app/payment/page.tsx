@@ -63,61 +63,54 @@ export default function PaymentPage() {
         throw new Error('No registration ID found. Please complete the registration first.');
       }
 
-      // Convert the file to base64
-      let screenshotBase64 = '';
-      if (values.paymentScreenshot) {
-        const file = values.paymentScreenshot;
-        
-        // Create a promise to handle the file reading
-        const fileToBase64 = (file: File): Promise<string> => {
-          return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-              if (typeof reader.result === 'string') {
-                resolve(reader.result);
-              } else {
-                reject(new Error('Failed to read file as base64'));
-              }
-            };
-            reader.onerror = error => reject(error);
-            reader.readAsDataURL(file);
-          });
-        };
-        
-        screenshotBase64 = await fileToBase64(file);
-        console.log('File converted to base64, length:', screenshotBase64.length);
-      } else {
+      if (!values.paymentScreenshot) {
         throw new Error('Payment screenshot is required');
       }
 
-      // Prepare the payment data
-      const paymentData = {
-        registrationId: registerId,
-        utrNumber: values.utrNumber,
-        screenshot: screenshotBase64,
-      };
-
-      console.log('Sending payment data:', {
-        registrationId: registerId,
-        utrNumber: values.utrNumber,
-        hasScreenshot: !!screenshotBase64,
+      // Debug: Log file details
+      console.log('File details:', {
+        name: values.paymentScreenshot.name,
+        type: values.paymentScreenshot.type,
+        size: values.paymentScreenshot.size
       });
 
-      // Send the payment data to the backend
-      console.log('Sending request to backend...');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/registrations/payment`, {
+      // Create FormData
+      const formData = new FormData();
+      formData.append('utrNumber', values.utrNumber);
+      formData.append('registrationId', registerId);
+      formData.append('file', values.paymentScreenshot);
+
+      // Debug: Log FormData contents
+      console.log('FormData entries:');
+      for (let [key, value] of formData.entries()) {
+        console.log(key, value instanceof File ? 
+          `${value.name} (${value.type}, ${value.size} bytes)` : 
+          value);
+      }
+
+      // Make the request
+      console.log('Sending request to /api/payments');
+      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/payments`;
+      console.log('API URL:', apiUrl);
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(paymentData),
+        body: formData,
       });
 
-      const responseData = await response.json();
-      console.log('Response from server:', responseData);
+      const responseData = await response.json().catch(e => ({
+        error: 'Failed to parse response',
+        details: e.message
+      }));
+
+      console.log('Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: responseData
+      });
 
       if (!response.ok) {
-        throw new Error(responseData.message || 'Failed to process payment');
+        throw new Error(responseData.message || `Failed to process payment: ${response.status} ${response.statusText}`);
       }
       
       // Store payment details in session storage
