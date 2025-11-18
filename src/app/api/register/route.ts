@@ -6,6 +6,30 @@ export async function POST(request: Request) {
   try {
     const formData = await request.json();
     
+    // Log the received form data (excluding password for security)
+    const { password, ...loggableData } = formData;
+    console.log('Registration attempt with data:', {
+      ...loggableData,
+      password: password ? '***' : 'not provided'
+    });
+    
+    // Validate required fields
+    const requiredFields = ['firstName', 'lastName', 'mobileNo', 'email', 'password'];
+    const missingFields = requiredFields.filter(field => !formData[field]);
+    
+    if (missingFields.length > 0) {
+      console.error('Missing required fields:', missingFields);
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Missing required fields',
+          fields: missingFields,
+          message: `Please provide all required fields: ${missingFields.join(', ')}`
+        },
+        { status: 400 }
+      );
+    }
+    
     // Hash the password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(formData.password, salt);
@@ -48,27 +72,67 @@ export async function POST(request: Request) {
       data: { id: result.rows[0].id }
     });
   } catch (error: any) {
-    console.error('Registration error:', error);
+    // Log the complete error for debugging
+    console.error('Registration error:', {
+      name: error.name,
+      message: error.message,
+      code: error.code,
+      constraint: error.constraint,
+      detail: error.detail,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      rawError: process.env.NODE_ENV === 'development' ? error : undefined
+    });
     
-    // Check for unique constraint violation (duplicate email)
-    if (error.code === '23505' && error.constraint === 'register_email_key') {
+    // Handle database errors
+    if (error.code === '23505') {
+      // Unique constraint violation
+      if (error.constraint === 'register_email_key') {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Email already registered',
+            field: 'email',
+            message: 'This email address is already registered. Please use a different email or log in.'
+          },
+          { status: 400 }
+        );
+      }
+      // Add other constraint violations here if needed
+    }
+    
+    // Handle database connection errors
+    if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
       return NextResponse.json(
         { 
           success: false, 
-          error: 'Email already registered',
-          field: 'email',
-          message: 'This email address is already registered. Please use a different email or log in.'
+          error: 'Database connection error',
+          message: 'Unable to connect to the database. Please try again later.'
+        },
+        { status: 503 }
+      );
+    }
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError' || error.status === 400) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Validation Error',
+          message: error.message || 'Invalid input data',
+          fields: error.fields
         },
         { status: 400 }
       );
     }
     
-    // For other errors, return a generic error message
+    // Default error response
     return NextResponse.json(
       { 
         success: false, 
-        error: 'Failed to process registration',
-        message: 'An error occurred while processing your registration. Please try again.'
+        error: 'Registration failed',
+        message: process.env.NODE_ENV === 'development' 
+          ? error.message 
+          : 'An error occurred while processing your registration. Please try again.'
       },
       { status: 500 }
     );
