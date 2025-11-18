@@ -267,7 +267,6 @@ export async function PUT(
     } finally {
       client.release();
     }
-
   } catch (error) {
     const errorId = crypto.randomUUID();
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
