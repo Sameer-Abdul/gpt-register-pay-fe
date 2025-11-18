@@ -33,17 +33,17 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-export async function GET() {
-  return new NextResponse(
-    JSON.stringify({ success: true, message: "Assignments API root" }),
-    { status: 200, headers: { 'Content-Type': 'application/json', ...securityHeaders } }
-  );
-}
+// Add this type to handle the context parameter
+type RouteContext = {
+  params: {
+    id: string;
+  };
+};
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+  context: RouteContext
+): Promise<NextResponse> {
   // Apply rate limiting
   if (ratelimit) {
     const forwarded = request.headers.get('x-forwarded-for') || '';
@@ -71,7 +71,7 @@ export async function PUT(
     }
   }
 
-  const { id } = params;
+  const { id } = context.params;
 
   if (!id || isNaN(Number(id)) || Number(id) <= 0) {
     return new NextResponse(
@@ -84,7 +84,6 @@ export async function PUT(
     );
   }
 
-  // Rest of your existing code remains the same...
   try {
     const contentLength = Number(request.headers.get('content-length') || '0');
     if (contentLength > MAX_REQUEST_SIZE) {
@@ -163,4 +162,11 @@ export async function PUT(
       { status: 500, headers: { 'Content-Type': 'application/json', ...securityHeaders } }
     );
   }
+}
+
+export async function GET() {
+  return new NextResponse(
+    JSON.stringify({ success: true, message: "Assignments API root" }),
+    { status: 200, headers: { 'Content-Type': 'application/json', ...securityHeaders } }
+  );
 }
