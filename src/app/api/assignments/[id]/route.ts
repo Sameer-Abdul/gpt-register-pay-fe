@@ -10,7 +10,6 @@ type RateLimitResult = {
   reset: number;
 };
 
-// Configure rate limiting
 const ratelimit = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
   ? new Ratelimit({
       redis: Redis.fromEnv(),
@@ -19,7 +18,6 @@ const ratelimit = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDI
     })
   : null;
 
-// Security headers
 const securityHeaders = {
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
@@ -44,13 +42,13 @@ export async function GET() {
 
 export async function PUT(
   request: NextRequest,
-  context: { params: { id: string } } | { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   // Apply rate limiting
   if (ratelimit) {
     const forwarded = request.headers.get('x-forwarded-for') || '';
     const ip = forwarded.split(/, /)[0] || '127.0.0.1';
-    const rateLimitResult = await ratelimit.limit(ip);
+    const rateLimitResult = await ratelimit.limit(ip) as RateLimitResult;
     
     if (!rateLimitResult.success) {
       return new NextResponse(
@@ -73,10 +71,7 @@ export async function PUT(
     }
   }
 
-  // Get ID from params
-  const id = context.params instanceof Promise 
-    ? (await context.params).id 
-    : context.params.id;
+  const { id } = params;
 
   if (!id || isNaN(Number(id)) || Number(id) <= 0) {
     return new NextResponse(
@@ -89,66 +84,27 @@ export async function PUT(
     );
   }
 
-  // Check request size
-  const contentLength = Number(request.headers.get('content-length') || '0');
-  if (contentLength > MAX_REQUEST_SIZE) {
-    return new NextResponse(
-      JSON.stringify({
-        success: false,
-        error: 'Payload Too Large',
-        message: `Request body exceeds ${MAX_REQUEST_SIZE / 1024 / 1024}MB limit`
-      }),
-      { status: 413, headers: { 'Content-Type': 'application/json', ...securityHeaders } }
-    );
-  }
-
+  // Rest of your existing code remains the same...
   try {
-    // Parse request body
-    let body;
-    try {
-      body = await request.json();
-    } catch (error) {
+    const contentLength = Number(request.headers.get('content-length') || '0');
+    if (contentLength > MAX_REQUEST_SIZE) {
       return new NextResponse(
         JSON.stringify({
           success: false,
-          error: 'Invalid JSON',
-          message: 'Failed to parse request body'
+          error: 'Payload Too Large',
+          message: `Request body exceeds ${MAX_REQUEST_SIZE / 1024 / 1024}MB limit`
         }),
-        { status: 400, headers: { 'Content-Type': 'application/json', ...securityHeaders } }
+        { status: 413, headers: { 'Content-Type': 'application/json', ...securityHeaders } }
       );
     }
 
-    // Validate rating
+    const body = await request.json();
     const { rating } = body;
-    if (rating === undefined || rating === null) {
-      return new NextResponse(
-        JSON.stringify({
-          success: false,
-          error: 'Missing Rating',
-          message: 'Rating is required'
-        }),
-        { status: 400, headers: { 'Content-Type': 'application/json', ...securityHeaders } }
-      );
-    }
 
-    const ratingValue = Number(rating);
-    if (isNaN(ratingValue) || ratingValue < 0 || ratingValue > 10) {
-      return new NextResponse(
-        JSON.stringify({
-          success: false,
-          error: 'Invalid Rating',
-          message: 'Rating must be a number between 0 and 10'
-        }),
-        { status: 400, headers: { 'Content-Type': 'application/json', ...securityHeaders } }
-      );
-    }
-
-    // Update database
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
       
-      // Check if assignment exists
       const checkResult = await client.query(
         'SELECT id FROM assignments WHERE id = $1 FOR UPDATE',
         [id]
@@ -166,13 +122,12 @@ export async function PUT(
         );
       }
 
-      // Update rating
       const updateResult = await client.query(
         `UPDATE assignments 
          SET rating = $1, updated_at = NOW() 
          WHERE id = $2 
          RETURNING id, rating, updated_at`,
-        [ratingValue, id]
+        [rating, id]
       );
 
       await client.query('COMMIT');
@@ -199,23 +154,13 @@ export async function PUT(
     }
   } catch (error) {
     console.error('Error updating assignment rating:', error);
-    const errorId = Math.random().toString(36).substr(2, 9);
-    
     return new NextResponse(
       JSON.stringify({
         success: false,
         error: 'Internal Server Error',
-        message: 'Failed to update assignment rating',
-        errorId
+        message: 'Failed to update assignment rating'
       }),
-      {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Error-ID': errorId,
-          ...securityHeaders
-        }
-      }
+      { status: 500, headers: { 'Content-Type': 'application/json', ...securityHeaders } }
     );
   }
 }
