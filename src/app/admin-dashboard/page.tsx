@@ -282,8 +282,9 @@ export default function AdminDashboard() {
     setSavingRatings(prev => ({ ...prev, [assignmentId]: true }));
     
     try {
-      // Call the server-side analysis endpoint which talks to Ollama
-      const response = await fetch(`/api/assignments/analyze/${assignmentId}`, {
+      // Call backend (Render) analyze endpoint directly to avoid Vercel API 404s
+      const apiBase = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiBase}/assignments/${assignmentId}/analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -383,12 +384,10 @@ export default function AdminDashboard() {
       
       console.log('Request body:', requestBody);
       
-      const response = await fetch(`/api/assignments/${id}`, {
+      const apiBase = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiBase}/assignments/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         credentials: 'same-origin',
         body: JSON.stringify(requestBody),
       });
