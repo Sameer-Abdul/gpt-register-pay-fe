@@ -35,11 +35,17 @@ const pool = new Pool({
 
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: { id: string } }
 ): Promise<NextResponse> {
+  console.log('PUT /api/assignments/[id] - Request received', {
+    url: request.url,
+    method: request.method,
+    headers: Object.fromEntries(request.headers.entries()),
+    params: context.params
+  });
+
   // Get the ID from the resolved params
-  const params = await context.params;
-  const id = params.id;
+  const id = context.params.id;
 
   // Apply rate limiting
   if (ratelimit) {
@@ -93,7 +99,20 @@ export async function PUT(
     }
 
     const body = await request.json();
+    console.log('Request body:', body);
+    
     const { rating } = body;
+
+    if (rating === undefined) {
+      return new NextResponse(
+        JSON.stringify({
+          success: false,
+          error: 'Bad Request',
+          message: 'Rating is required'
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...securityHeaders } }
+      );
+    }
 
     const client = await pool.connect();
     try {
@@ -159,9 +178,68 @@ export async function PUT(
   }
 }
 
-export async function GET() {
-  return new NextResponse(
-    JSON.stringify({ success: true, message: "Assignments API root" }),
-    { status: 200, headers: { 'Content-Type': 'application/json', ...securityHeaders } }
-  );
+export async function GET(
+  request: NextRequest,
+  context: { params: { id: string } }
+) {
+  try {
+    const id = context.params.id;
+    
+    if (!id || isNaN(Number(id)) || Number(id) <= 0) {
+      return new NextResponse(
+        JSON.stringify({
+          success: false,
+          error: 'Invalid ID',
+          message: 'A valid assignment ID is required'
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...securityHeaders } }
+      );
+    }
+
+    const client = await pool.connect();
+    try {
+      const result = await client.query(
+        'SELECT * FROM assignments WHERE id = $1',
+        [id]
+      );
+
+      if (result.rowCount === 0) {
+        return new NextResponse(
+          JSON.stringify({
+            success: false,
+            error: 'Not Found',
+            message: 'Assignment not found'
+          }),
+          { status: 404, headers: { 'Content-Type': 'application/json', ...securityHeaders } }
+        );
+      }
+
+      return new NextResponse(
+        JSON.stringify({
+          success: true,
+          data: result.rows[0]
+        }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store, max-age=0',
+            ...securityHeaders
+          }
+        }
+      );
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Error fetching assignment:', error);
+    return new NextResponse(
+      JSON.stringify({
+        success: false,
+        error: 'Internal Server Error',
+        message: 'Failed to fetch assignment'
+      }),
+      { status: 500, headers: { 'Content-Type': 'application/json', ...securityHeaders } }
+    );
+  }
 }

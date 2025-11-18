@@ -1,11 +1,22 @@
 import axios, { AxiosError, AxiosResponse } from 'axios';
 import { toast } from '@/components/ui/use-toast';
 
+// Use relative URLs for API requests in the browser, full URL in SSR
+const getBaseURL = () => {
+  // In browser, use relative URL
+  if (typeof window !== 'undefined') {
+    return ''; // This will make requests relative to the current domain
+  }
+  // For server-side rendering, use the environment variable or default to localhost
+  return process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+};
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_BACKEND_URL,
+  baseURL: getBaseURL(),
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Important for cookies/auth
 });
 
 // Request interceptor to add auth token if available
@@ -26,6 +37,21 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError) => {
+    console.error('API Error:', {
+      message: error.message,
+      config: {
+        url: error.config?.url,
+        method: error.config?.method,
+        data: error.config?.data,
+        headers: error.config?.headers,
+      },
+      response: error.response ? {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data,
+        headers: error.response.headers,
+      } : undefined,
+    });
     if (error.response) {
       // Handle specific status codes
       const { status, data } = error.response;
