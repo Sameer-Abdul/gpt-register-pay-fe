@@ -149,16 +149,17 @@ export async function POST(request: Request) {
             [filePath, file.type, file.name, file.size, paymentId]
           );
           
-          // Also update the register table with the file path and MIME type
+          // Also update the register table with the binary data, file path, and MIME type
           await client.query(
             `UPDATE register 
              SET payment_screenshot = $1,
                  screenshot_mime_type = $2,
-                 utr_number = $3,
-                 payment_id = $4,
+                 payment_screenshot_path = $3,
+                 utr_number = $4,
+                 payment_id = $5,
                  updated_at = NOW()
-             WHERE id = $5`,
-            [filePath, file.type, utrNumber, paymentId, registerId]
+             WHERE id = $6`,
+            [fileBuffer, file.type, filePath, utrNumber, paymentId, registerId]
           );
           
           console.log('Updated register table with payment details');
