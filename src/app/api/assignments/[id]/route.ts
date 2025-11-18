@@ -62,19 +62,19 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  try {
-  const id = await params.id;
+  const { id } = params;
   
-  // Add request logging
-  console.log(`[${new Date().toISOString()}] PUT /api/assignments/${id}`, {
-    method: request.method,
-    url: request.url,
-    headers: Object.fromEntries(request.headers.entries()),
-    params: params.id
-  });
+  try {
+    // Add request logging
+    console.log(`[${new Date().toISOString()}] PUT /api/assignments/${id}`, {
+      method: request.method,
+      url: request.url,
+      headers: Object.fromEntries(request.headers.entries()),
+      params: { id }
+    });
 
-  // Check if the ID is valid
-  if (!id || isNaN(Number(id)) || Number(id) <= 0) {
+    // Check if the ID is valid
+    if (!id || isNaN(Number(id)) || Number(id) <= 0) {
     console.error('Invalid assignment ID:', id);
     return new NextResponse(
       JSON.stringify({
@@ -526,11 +526,31 @@ export async function PUT(
       }
     );
   }
+} catch (error) {
+  // This is the missing catch block for the outer try
+  const errorId = crypto.randomUUID();
+  console.error('Unhandled error in PUT /api/assignments/[id]:', {
+    errorId,
+    error,
+    timestamp: new Date().toISOString()
+  });
+  
+  return new NextResponse(
+    JSON.stringify({
+      success: false,
+      error: 'Internal Server Error',
+      message: 'An unexpected error occurred',
+      errorId
+    }),
+    {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Error-ID': errorId,
+        'X-Error-Type': 'UnhandledError',
+        ...securityHeaders
+      }
+    }
+  );
 }
-catch (error) {
-    return NextResponse.json(
-      { error: 'Internal Server Error' },
-      { status: 500 }
-    );
-  }
 }
