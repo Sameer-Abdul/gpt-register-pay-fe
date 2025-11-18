@@ -152,7 +152,7 @@ export async function POST(request: Request) {
           // Also update the register table with the file path and MIME type
           await client.query(
             `UPDATE register 
-             SET payment_screenshot_path = $1,
+             SET payment_screenshot = $1,
                  screenshot_mime_type = $2,
                  utr_number = $3,
                  payment_id = $4,
