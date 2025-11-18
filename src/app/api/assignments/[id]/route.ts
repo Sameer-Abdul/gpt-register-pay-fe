@@ -60,9 +60,9 @@ export async function GET() {
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
-  const { id } = params;
+  const { id } = context.params;
   
   // Add request logging
   console.log(`[${new Date().toISOString()}] PUT /api/assignments/${id}`, {
