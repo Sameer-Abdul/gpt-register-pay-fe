@@ -33,17 +33,13 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-type Context = {
-  params: {
-    id: string;
-  };
-};
-
 export async function PUT(
   request: NextRequest,
-  { params }: Context
+  context: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
-  const { id } = params;
+  // Get the ID from the resolved params
+  const params = await context.params;
+  const id = params.id;
 
   // Apply rate limiting
   if (ratelimit) {
