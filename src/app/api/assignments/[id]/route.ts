@@ -60,16 +60,17 @@ export async function GET() {
 
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  const { id } = await context.params;
+  try {
+  const id = await params.id;
   
   // Add request logging
   console.log(`[${new Date().toISOString()}] PUT /api/assignments/${id}`, {
     method: request.method,
     url: request.url,
     headers: Object.fromEntries(request.headers.entries()),
-    params: context.params
+    params: params.id
   });
 
   // Check if the ID is valid
@@ -523,6 +524,13 @@ export async function PUT(
           'Retry-After': '60'
         }
       }
+    );
+  }
+}
+catch (error) {
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500 }
     );
   }
 }
