@@ -158,28 +158,57 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get form data
-    const formData = await request.formData();
-    const file = formData.get('file') as File | null;
-    const context = formData.get('context') as string | null;
+    // Check if this is a JSON request (for creating assignment) or form data (legacy)
+    const contentType = request.headers.get('content-type');
+    let context, fileName, fileSize, fileType, file, fileBuffer;
     
-    console.log('Form data received:', { 
-      fileName: file?.name, 
-      fileSize: file?.size,
-      fileType: file?.type,
-      context: context
-    });
-    
-    if (!file) {
-      console.error('No file provided in form data');
-      return NextResponse.json(
-        { error: 'No file provided' },
-        { status: 400 }
-      );
+    if (contentType?.includes('application/json')) {
+      // JSON request - creating assignment without file
+      const body = await request.json();
+      context = body.context;
+      fileName = body.fileName;
+      fileSize = body.fileSize;
+      fileType = body.fileType;
+      
+      console.log('JSON request received:', { context, fileName, fileSize, fileType });
+    } else {
+      // Form data request - legacy behavior
+      const formData = await request.formData();
+      file = formData.get('file') as File | null;
+      context = formData.get('context') as string | null;
+      
+      console.log('Form data received:', { 
+        fileName: file?.name, 
+        fileSize: file?.size,
+        fileType: file?.type,
+        context: context
+      });
+      
+      if (!file) {
+        console.error('No file provided in form data');
+        return NextResponse.json(
+          { error: 'No file provided' },
+          { status: 400 }
+        );
+      }
+      
+      if (!context) {
+        console.error('No context provided in form data');
+        return NextResponse.json(
+          { error: 'No context provided' },
+          { status: 400 }
+        );
+      }
+
+      // Convert file to buffer for legacy behavior
+      fileBuffer = Buffer.from(await file.arrayBuffer());
+      fileName = file.name;
+      fileSize = file.size;
+      fileType = file.type;
     }
     
     if (!context) {
-      console.error('No context provided in form data');
+      console.error('No context provided');
       return NextResponse.json(
         { error: 'No context provided' },
         { status: 400 }
@@ -204,39 +233,43 @@ export async function POST(request: Request) {
     const registerId = userResult.rows[0].id;
     console.log('User found, registerId:', registerId);
     
-    // Convert file to buffer
-    console.log('Converting file to buffer...');
-    const fileBuffer = Buffer.from(await file.arrayBuffer());
-    
-    // Insert file into database
-    console.log('Inserting file into database...');
+    // Insert assignment into database
+    console.log('Inserting assignment into database...');
     const result = await pool.query(
       `INSERT INTO assignments (
         register_id,
         file_name,
-        file_data,
         file_size,
         file_type,
         context,
         submission_date,
         created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW()) RETURNING id`,
+      ) VALUES ($1, $2, $3, $4, $5, NOW(), NOW()) RETURNING id`,
       [
         registerId,
-        file.name,
-        fileBuffer,
-        file.size,
-        file.type,
+        fileName,
+        fileSize,
+        fileType,
         context
       ]
     );
     
-    console.log('File inserted successfully, ID:', result.rows[0]?.id);
+    const assignmentId = result.rows[0]?.id;
+    console.log('Assignment created successfully, ID:', assignmentId);
+
+    // If this is a legacy request with file data, also store the file
+    if (fileBuffer) {
+      console.log('Updating assignment with file data...');
+      await pool.query(
+        'UPDATE assignments SET file_data = $1 WHERE id = $2',
+        [fileBuffer, assignmentId]
+      );
+    }
 
     return NextResponse.json({ 
       success: true, 
-      message: 'File uploaded successfully',
-      fileId: result.rows[0]?.id
+      id: assignmentId,
+      message: 'Assignment created successfully'
     });
 
   } catch (error) {

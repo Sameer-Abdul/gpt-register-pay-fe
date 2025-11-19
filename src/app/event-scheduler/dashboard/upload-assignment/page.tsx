@@ -144,36 +144,59 @@ export default function UploadAssignmentPage() {
     });
 
     try {
-      console.log('Sending request to /api/assignments');
+      console.log('Creating assignment first...');
       
-      const response = await fetch('/api/assignments', {
+      // Step 1: Create assignment in database to get an ID
+      const createResponse = await fetch('/api/assignments', {
         method: 'POST',
-        body: formData,
-        // Don't set Content-Type header, let the browser set it with the correct boundary
-      }).catch(err => {
-        console.error('Network error:', err);
-        throw new Error(`Network error: ${err.message}`);
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          context: context,
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+        }),
       });
 
-      console.log('Response status:', response.status);
+      console.log('Create assignment response status:', createResponse.status);
       
-      // Try to parse response as JSON, but handle non-JSON responses
-      let data;
-      try {
-        const text = await response.text();
-        console.log('Raw response:', text);
-        data = text ? JSON.parse(text) : {};
-      } catch (parseError) {
-        console.error('Error parsing response:', parseError);
-        throw new Error('Invalid response from server');
+      if (!createResponse.ok) {
+        const errorData = await createResponse.json();
+        throw new Error(errorData.error || `Failed to create assignment: ${createResponse.status}`);
       }
 
-      if (!response.ok) {
-        console.error('Server error:', data);
-        throw new Error(data.error || `Server error: ${response.status} ${response.statusText}`);
+      const createData = await createResponse.json();
+      console.log('Assignment created:', createData);
+      
+      const assignmentId = createData.id || createData.fileId;
+      if (!assignmentId) {
+        throw new Error('No assignment ID received from server');
       }
 
-      console.log('Upload successful:', data);
+      console.log('Assignment ID:', assignmentId);
+      
+      // Step 2: Upload file to backend using the assignment ID
+      console.log('Uploading file to backend...');
+      
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', file);
+      
+      const uploadResponse = await fetch(`/api/assignments/${assignmentId}/upload`, {
+        method: 'POST',
+        body: uploadFormData,
+      });
+
+      console.log('Upload response status:', uploadResponse.status);
+      
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        throw new Error(errorData.error || `Upload failed: ${uploadResponse.status}`);
+      }
+
+      const uploadData = await uploadResponse.json();
+      console.log('File uploaded successfully:', uploadData);
       
       // On success
       setUploadStatus({
