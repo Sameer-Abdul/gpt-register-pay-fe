@@ -66,12 +66,30 @@ export default function LoginPage() {
       status, 
       isRedirecting,
       hasSession: !!session,
-      callbackUrl
+      callbackUrl,
+      sessionData: session
     });
 
     // If already authenticated, redirect to dashboard
     if (status === 'authenticated' && !isRedirecting) {
       console.log('[Login] Already authenticated, redirecting to', callbackUrl);
+      
+      // Store tenant ID in localStorage if available in session
+      if (session?.user?.tenantId) {
+        console.log('[Login] Storing tenant ID in localStorage:', session.user.tenantId);
+        localStorage.setItem('tenant_id', session.user.tenantId);
+      } else if (session?.user?.id) {
+        // If tenant ID is not in session, try to get it from the user object
+        console.log('[Login] Tenant ID not found in session, checking user object');
+        // @ts-ignore - user might have tenantId
+        if (session.user.user?.tenantId) {
+          // @ts-ignore
+          const tenantId = session.user.user.tenantId;
+          console.log('[Login] Found tenant ID in user object:', tenantId);
+          localStorage.setItem('tenant_id', tenantId);
+        }
+      }
+      
       setIsRedirecting(true);
       
       // Small delay to ensure session is fully established
@@ -221,8 +239,8 @@ export default function LoginPage() {
       const result = await signIn('credentials', {
         redirect: false,
         email: email.trim(),
-        password: password,
-        callbackUrl: callbackUrl,
+        password,
+        callbackUrl: callbackUrl
       });
       
       console.log('[Login] SignIn result:', {

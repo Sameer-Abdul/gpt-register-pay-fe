@@ -14,6 +14,10 @@ interface TenantHeaderData {
 }
 
 const DynamicTenantHeader = () => {
+  // Don't render if window is not defined (server-side rendering)
+  if (typeof window === 'undefined') {
+    return null;
+  }
   const [headerData, setHeaderData] = useState<TenantHeaderData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,9 +26,13 @@ const DynamicTenantHeader = () => {
   useEffect(() => {
     const fetchTenantHeader = async () => {
       try {
-        // Using TEN001 as the default tenant ID
-        // In a production app, this should come from user session or URL
-        const tenantId = 'TEN001'; // Using the first tenant from the database
+        // Get tenantId from localStorage
+        const tenantId = typeof window !== 'undefined' ? localStorage.getItem('tenant_id') : null;
+        
+        if (!tenantId) {
+          setLoading(false);
+          return;
+        }
         
         const response = await fetch(`/api/tenants/${tenantId}/header`);
          console.log('Response status:', response.status); 
