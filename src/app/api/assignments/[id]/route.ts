@@ -3,6 +3,8 @@ import pool from '@/lib/db';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
 
+export const dynamic = 'force-dynamic';
+
 type RateLimitResult = {
   success: boolean;
   limit: number;
