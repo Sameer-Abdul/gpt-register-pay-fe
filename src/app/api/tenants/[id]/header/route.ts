@@ -1,62 +1,42 @@
-import { NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  req: NextRequest, 
+  context: { params: { id: string } }
 ) {
   try {
-    const tenantId = params.id;
-    
-    if (!tenantId) {
-      return NextResponse.json(
-        { success: false, error: 'Tenant ID is required' },
-        { status: 400 }
-      );
+    // Next.js 16 sometimes wraps params in a Promise → use await safely
+    const { id } = await context.params;
+
+    const backendUrl = process.env.BACKEND_URL;
+    if (!backendUrl) {
+      throw new Error("BACKEND_URL is not defined in environment variables");
     }
 
-    // Query to get tenant header details
-    const tenantQuery = `
-      SELECT 
-        id as "tenantId",
-        name,
-        image_url_left as "imageLeft",
-        image_url_right as "imageRight",
-        header_format as "headerFormat",
-        header_custom_lines as "headerCustomLines"
-      FROM tenant_master 
-      WHERE id = $1
-    `;
-    
-    const result = await query(tenantQuery, [tenantId]);
-    
-    if (result.rows.length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'Tenant not found' },
-        { status: 404 }
-      );
+    const res = await fetch(`${backendUrl}/tenants/${id}/header`, {
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      return NextResponse.json({
+        success: false,
+        error: "Failed to fetch tenant header from backend",
+      }, { status: 500 });
     }
 
-    const tenantData = result.rows[0];
-    
+    const data = await res.json();
+
     return NextResponse.json({
       success: true,
-      data: {
-        tenantId: tenantData.tenantId,
-        name: tenantData.name,
-        imageLeft: tenantData.imageLeft || null,
-        imageRight: tenantData.imageRight || null,
-        header_format: tenantData.headerFormat || 'auto',
-        header_custom_lines: tenantData.headerCustomLines || null
-      }
+      data
     });
     
   } catch (error) {
-    console.error('Error fetching tenant header:', error);
+    console.error('Error in tenant header API:', error);
     return NextResponse.json(
       { 
         success: false, 
-        error: 'Failed to fetch tenant header',
+        error: 'Failed to process tenant header request',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
