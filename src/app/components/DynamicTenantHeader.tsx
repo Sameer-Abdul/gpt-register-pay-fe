@@ -32,31 +32,44 @@ const DynamicTenantHeader = () => {
       try {
         console.log('Fetching tenant header...');
         
-        // Get tenantId from localStorage
+        // First try to get tenantId from session
+        try {
+          const session = await getSession();
+          console.log('Session data:', session);
+          
+          if (session?.user?.tenantId) {
+            console.log('Found tenantId in session:', session.user.tenantId);
+            // Store in localStorage for persistence
+            localStorage.setItem('tenant_id', session.user.tenantId);
+            // Use the tenantId from session
+            fetchTenantData(session.user.tenantId);
+            return;
+          }
+        } catch (err) {
+          console.error('Error getting session:', err);
+        }
+        
+        // Fallback to localStorage if session doesn't have tenantId
         const tenantId = localStorage.getItem('tenant_id');
         console.log('Retrieved tenantId from localStorage:', tenantId);
         
-        // Also check session storage as a fallback
         if (!tenantId) {
-          console.log('No tenantId found in localStorage, checking session...');
-          try {
-            const session = await getSession();
-            console.log('Session data:', session);
-            if (session?.user?.tenantId) {
-              console.log('Found tenantId in session, saving to localStorage');
-              localStorage.setItem('tenant_id', session.user.tenantId);
-              window.location.reload(); // Reload to get the tenant ID from localStorage
-              return;
-            }
-          } catch (err) {
-            console.error('Error getting session:', err);
-          }
-          
-          console.log('No tenantId found in session either');
+          console.error('No tenantId found in session or localStorage');
           setError('Tenant information not found. Please log in again.');
           setLoading(false);
           return;
         }
+        
+        fetchTenantData(tenantId);
+      } catch (err) {
+        console.error('Error in fetchTenantHeader:', err);
+        setError('Failed to load tenant information');
+        setLoading(false);
+      }
+    };
+    
+    const fetchTenantData = async (tenantId: string) => {
+      try {
         
         const apiUrl = `/api/tenants/${tenantId}/header`;
         console.log('Fetching from API:', apiUrl);

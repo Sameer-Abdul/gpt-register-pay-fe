@@ -243,19 +243,35 @@ export default function LoginPage() {
         callbackUrl: callbackUrl
       });
       
-      // If login was successful, store tenant ID in localStorage
+      // If login was successful
       if (result?.ok && !result?.error) {
+        console.log('Login successful, result:', result);
+        
         try {
-          // We need to get the session to access the tenant ID
+          // Get the session to access the tenant ID
           const session = await getSession();
+          console.log('Session after login:', session);
+          
           if (session?.user?.tenantId) {
             console.log('Storing tenant ID in localStorage:', session.user.tenantId);
             localStorage.setItem('tenant_id', session.user.tenantId);
+            
+            // Force a full page reload to ensure all components get the new session
+            console.log('Reloading page to apply session changes...');
+            window.location.href = result.url || '/event-scheduler/dashboard';
+            return;
           } else {
             console.warn('No tenant ID found in session after login');
+            // Still redirect but log a warning
+            console.warn('Proceeding without tenant ID in session');
+            window.location.href = result.url || '/event-scheduler/dashboard';
+            return;
           }
         } catch (error) {
           console.error('Error getting session after login:', error);
+          // Even if there's an error, still redirect to the dashboard
+          window.location.href = result.url || '/event-scheduler/dashboard';
+          return;
         }
       }
       
