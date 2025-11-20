@@ -65,10 +65,22 @@ const DynamicTenantHeader = () => {
     const fetchTenantData = async (tenantId: string) => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/tenants/${tenantId}/header`);
+
+        const baseUrl =
+          process.env.NEXT_PUBLIC_BACKEND_URL ||
+          process.env.NEXT_PUBLIC_API_URL ||
+          '';
+
+        const url = baseUrl
+          ? `${baseUrl}/tenants/${tenantId}/header`
+          : `/api/tenants/${tenantId}/header`;
+
+        console.log('Fetching tenant header from URL:', url);
+
+        const response = await fetch(url);
         
         if (!response.ok) {
-          throw new Error(`Failed to fetch tenant data: ${response.statusText}`);
+          throw new Error(`Failed to fetch tenant data: ${response.status} ${response.statusText}`);
         }
         
         const data = await response.json();
