@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   req: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await context.params;
+    const id = params.id;
 
     const backendUrl = process.env.BACKEND_URL;
     if (!backendUrl) {
@@ -16,32 +16,35 @@ export async function GET(
     }
 
     const res = await fetch(`${backendUrl}/tenants/${id}/header`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
       cache: "no-store",
     });
 
-    const data = await res.json();
-
     if (!res.ok) {
       return NextResponse.json(
-        { success: false, error: data.error || "Backend error" },
+        {
+          success: false,
+          error: "Backend error",
+          status: res.status,
+        },
         { status: res.status }
       );
     }
+
+    const data = await res.json();
 
     return NextResponse.json({
       success: true,
       data: data.data,
     });
-  } catch (error: any) {
-    console.error("Tenant Header API Error:", error);
+  } catch (err: any) {
     return NextResponse.json(
-      { success: false, error: error.message || "Unexpected error" },
+      {
+        success: false,
+        error: err.message || "Unexpected error",
+      },
       { status: 500 }
     );
   }
 }
 
-// 👇 Required for Next.js 16 route handler correctness
 export const dynamic = "force-dynamic";
