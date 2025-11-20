@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
   req: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await context.params;
+    const id = params.id;
 
     const backendUrl = process.env.BACKEND_URL;
     if (!backendUrl) {
@@ -16,8 +16,6 @@ export async function GET(
     }
 
     const res = await fetch(`${backendUrl}/tenants/${id}/header`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
       cache: "no-store",
     });
 
@@ -30,14 +28,10 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      data: data.data,
-    });
-  } catch (error: any) {
-    console.error("Tenant Header API Error:", error);
+    return NextResponse.json({ success: true, data: data.data });
+  } catch (err: any) {
     return NextResponse.json(
-      { success: false, error: error.message || "Unexpected error" },
+      { success: false, error: err.message || "Server error" },
       { status: 500 }
     );
   }
