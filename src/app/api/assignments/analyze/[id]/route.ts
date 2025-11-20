@@ -2,30 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import pool from "@/lib/db";
-import { Buffer } from "buffer";
-
-const parsePdf = async (buffer: Buffer): Promise<string> => {
-  const pdf = require("pdf-parse");
-  const data = await pdf(buffer);
-  return data.text;
-};
-
-const analyzeWithOllama = async (prompt: string) => {
-  const baseUrl =
-    process.env.OLLAMA_BASE_URL ||
-    process.env.NEXT_PUBLIC_OLLAMA_BASE_URL ||
-    "http://localhost:11434";
-  const response = await fetch(`${baseUrl}/api/generate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "llama3",
-      prompt,
-      stream: false,
-    }),
-  });
-  return await response.json();
-};
 
 export async function POST(
   request: NextRequest,
@@ -50,6 +26,9 @@ export async function POST(
       );
     }
 
+    const body = await request.json().catch(() => ({}));
+    const contextText = body?.context ?? "";
+
     const client = await pool.connect();
     try {
       const userResult = await client.query(
@@ -63,51 +42,86 @@ export async function POST(
         );
       }
 
-      const assignmentResult = await client.query(
-        `SELECT a.*, r.email as user_email
-         FROM assignments a
-         JOIN register r ON a.register_id = r.id
-         WHERE a.id = $1`,
-        [assignmentId]
-      );
-      if (assignmentResult.rows.length === 0) {
+      const backendUrl =
+        process.env.NEXT_PUBLIC_BACKEND_URL ||
+        process.env.NEXT_PUBLIC_API_URL ||
+        process.env.API_URL;
+      if (!backendUrl) {
         return NextResponse.json(
-          { success: false, error: "Assignment not found" },
-          { status: 404 }
+          { success: false, error: "Backend URL is not configured" },
+          { status: 500 }
         );
       }
 
-      const assignment = assignmentResult.rows[0];
+      const backendEndpoint = `${backendUrl}/assignments/${assignmentId}/analyze`;
 
-    if (!assignment.file_data?.data) {
-      return NextResponse.json(
-        { success: false, error: "No file data available" },
-        { status: 400 }
-      );
-    }
+      const backendResponse = await fetch(backendEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ context: contextText }),
+      });
 
-      const pdfText = await parsePdf(Buffer.from(assignment.file_data.data));
-      const prompt = `Rate this assignment from 0–10:\n${pdfText}`;
-      const ollamaResponse = await analyzeWithOllama(prompt);
+      const backendData = await backendResponse.json().catch(() => ({}));
 
-      const ratingMatch = ollamaResponse.response?.match(/\d+/);
-      const rating = ratingMatch
-        ? Math.min(10, Math.max(0, parseInt(ratingMatch[0], 10)))
-        : 5;
+      if (!backendResponse.ok) {
+        const message =
+          backendData?.message ||
+          backendData?.error ||
+          `Backend responded with status ${backendResponse.status}`;
 
-      await client.query(
+        return NextResponse.json(
+          { success: false, error: message },
+          { status: backendResponse.status }
+        );
+      }
+
+      const aiRatingRaw =
+        typeof backendData?.aiRating === "number"
+          ? backendData.aiRating
+          : typeof backendData?.data?.aiRating === "number"
+          ? backendData.data.aiRating
+          : undefined;
+
+      if (
+        typeof aiRatingRaw !== "number" ||
+        Number.isNaN(aiRatingRaw) ||
+        aiRatingRaw < 0 ||
+        aiRatingRaw > 10
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Invalid rating received from backend AI analysis",
+          },
+          { status: 500 }
+        );
+      }
+
+      const rating = aiRatingRaw;
+
+      const updateResult = await client.query(
         `UPDATE assignments
          SET ai_rating = $1,
-             final_rating = COALESCE(manual_rating, $1),
-             updated_at = NOW()
-         WHERE id = $2`,
+             final_rating = COALESCE(manual_rating, $1)
+         WHERE id = $2
+         RETURNING id, ai_rating, manual_rating, final_rating`,
         [rating, assignmentId]
       );
+
+      const updated = updateResult.rows[0];
 
       return NextResponse.json({
         success: true,
         id: assignmentId,
-        data: { rating, score: rating * 10 },
+        data: {
+          rating,
+          score: rating * 10,
+          ai_rating: updated?.ai_rating ?? rating,
+          manual_rating: updated?.manual_rating ?? null,
+          final_rating: updated?.final_rating ?? rating,
+        },
       });
     } finally {
       client.release();
@@ -117,7 +131,7 @@ export async function POST(
       {
         success: false,
         error: "Failed to analyze assignment",
-        details: error.message,
+        details: error?.message ?? String(error),
       },
       { status: 500 }
     );
