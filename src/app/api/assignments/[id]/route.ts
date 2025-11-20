@@ -96,29 +96,21 @@ export async function PUT(
     const body = await request.json();
     console.log('Request body:', body);
     
-    const { rating } = body;
+    const rawManualRating = body?.manualRating ?? body?.rating;
 
-    if (rating === undefined || rating === null) {
-      return new NextResponse(
-        JSON.stringify({
-          success: false,
-          error: 'Bad Request',
-          message: 'Rating is required'
-        }),
-        { status: 400, headers: { 'Content-Type': 'application/json', ...securityHeaders } }
-      );
-    }
-
-    const numericRating = Number(rating);
-    if (Number.isNaN(numericRating) || numericRating < 0 || numericRating > 10) {
-      return new NextResponse(
-        JSON.stringify({
-          success: false,
-          error: 'Bad Request',
-          message: 'Rating must be a number between 0 and 10'
-        }),
-        { status: 400, headers: { 'Content-Type': 'application/json', ...securityHeaders } }
-      );
+    // Allow null to clear manual rating and fall back to ai_rating
+    if (rawManualRating !== null && rawManualRating !== undefined) {
+      const numericRating = Number(rawManualRating);
+      if (Number.isNaN(numericRating) || numericRating < 0 || numericRating > 10) {
+        return new NextResponse(
+          JSON.stringify({
+            success: false,
+            error: 'Bad Request',
+            message: 'Rating must be a number between 0 and 10'
+          }),
+          { status: 400, headers: { 'Content-Type': 'application/json', ...securityHeaders } }
+        );
+      }
     }
 
     const client = await pool.connect();
@@ -144,10 +136,11 @@ export async function PUT(
 
       const updateResult = await client.query(
         `UPDATE assignments 
-         SET rating = $1
+         SET manual_rating = $1,
+             final_rating = COALESCE($1, ai_rating)
          WHERE id = $2 
-         RETURNING id, rating`,
-        [numericRating, id]
+         RETURNING id, ai_rating, manual_rating, final_rating`,
+        [rawManualRating === null || rawManualRating === undefined ? null : Number(rawManualRating), id]
       );
 
       await client.query('COMMIT');

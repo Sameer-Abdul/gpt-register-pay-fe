@@ -22,6 +22,10 @@ interface Assignment {
   submission_date: string;
   created_at: string;
   user_email: string;
+  ai_rating: number | null;
+  manual_rating: number | null;
+  final_rating: number | null;
+  // Backwards-compatible alias used in existing UI for color bar
   rating: number | null;
   context: string | null;
   first_name: string | null;
@@ -208,29 +212,42 @@ export default function AdminDashboard() {
         console.log(`Received ${responseData.length} assignments`);
         
         // Transform the data to match our Assignment interface
-        const formattedAssignments = responseData.map((item: any) => ({
-          id: item.id,
-          register_id: item.register_id,
-          file_name: item.file_name,
-          file_size: item.file_size,
-          file_type: item.file_type,
-          state: item.state || null,
-          district: item.district || null,
-          mandal: item.mandal || null,
-          submission_date: item.submission_date,
-          created_at: item.created_at,
-          user_email: item.user_email || '',
-          rating: item.rating || null,
-          context: item.context || null,
-          first_name: item.first_name || null,
-          last_name: item.last_name || null
-        }));
+        const formattedAssignments = responseData.map((item: any) => {
+          const aiRating = item.ai_rating ?? null;
+          const manualRating = item.manual_rating ?? null;
+          const finalRating = item.final_rating ?? null;
 
-        // Initialize ratings state with existing ratings
+          // Prefer final_rating, then manual, then AI for the legacy rating field
+          const legacyRating =
+            finalRating ?? manualRating ?? aiRating ?? null;
+
+          return {
+            id: item.id,
+            register_id: item.register_id,
+            file_name: item.file_name,
+            file_size: item.file_size,
+            file_type: item.file_type,
+            state: item.state || null,
+            district: item.district || null,
+            mandal: item.mandal || null,
+            submission_date: item.submission_date,
+            created_at: item.created_at,
+            user_email: item.user_email || '',
+            ai_rating: aiRating,
+            manual_rating: manualRating,
+            final_rating: finalRating,
+            rating: legacyRating,
+            context: item.context || null,
+            first_name: item.first_name || null,
+            last_name: item.last_name || null,
+          } as Assignment;
+        });
+
+        // Initialize ratings state with existing MANUAL ratings only
         const initialRatings = formattedAssignments.reduce((acc: RatingState, assignment: Assignment) => {
-          acc[assignment.id] = assignment.rating;
+          acc[assignment.id] = assignment.manual_rating;
           return acc;
-        }, {});
+        }, {} as RatingState);
         setRatings(initialRatings);
         
         console.log('Formatted assignments:', formattedAssignments);
@@ -325,20 +342,27 @@ export default function AdminDashboard() {
         throw new Error('Invalid rating received from AI analysis');
       }
 
-      // Update the local state with the new rating
+      // Update the local state with the new AI rating and recomputed final rating
       setAssignments(prev =>
-        prev.map(assignment =>
-          assignment.id === assignmentId
-            ? { ...assignment, rating }
-            : assignment
-        )
-      );
+        prev.map(assignment => {
+          if (assignment.id !== assignmentId) return assignment;
 
-      // Update the ratings state as well
-      setRatings(prev => ({
-        ...prev,
-        [assignmentId]: rating
-      }));
+          const ai_rating = rating;
+          const manual_rating = assignment.manual_rating;
+          const final_rating =
+            manual_rating !== null && manual_rating !== undefined
+              ? manual_rating
+              : ai_rating;
+
+          return {
+            ...assignment,
+            ai_rating,
+            manual_rating,
+            final_rating,
+            rating: final_rating,
+          };
+        })
+      );
 
       toast({
         title: 'AI Analysis Complete',
@@ -373,13 +397,14 @@ export default function AdminDashboard() {
       console.log('Starting to save rating for assignment:', id);
       setSavingRatings(prev => ({ ...prev, [id]: true }));
       
-      // Get the rating value from state
+      // Get the manual rating value from state
       const ratingValue = ratings[id];
-      console.log('Rating value from state:', { id, rating: ratingValue, ratings });
+      console.log('Manual rating value from state:', { id, rating: ratingValue, ratings });
       
-      // Prepare the request body
+      // Prepare the request body (send both for compatibility)
       const requestBody = { 
-        rating: ratingValue === undefined ? null : ratingValue 
+        manualRating: ratingValue === undefined ? null : ratingValue,
+        rating: ratingValue === undefined ? null : ratingValue,
       };
       
       console.log('Request body:', requestBody);
@@ -423,17 +448,28 @@ export default function AdminDashboard() {
       console.log('Rating saved successfully:', responseData);
       
       // Convert ratingValue to number or null before updating assignments
-      const newRating = ratingValue === null || ratingValue === undefined 
+      const newManualRating = ratingValue === null || ratingValue === undefined 
         ? null 
         : Number(ratingValue);
       
-      // Update the assignments with the new rating after successful save
+      // Update the assignments with the new manual and final ratings after successful save
       setAssignments(prev => 
-        prev.map(assignment => 
-          assignment.id === id 
-            ? { ...assignment, rating: newRating } 
-            : assignment
-        )
+        prev.map(assignment => {
+          if (assignment.id !== id) return assignment;
+
+          const manual_rating = newManualRating;
+          const final_rating =
+            manual_rating !== null && manual_rating !== undefined
+              ? manual_rating
+              : assignment.ai_rating ?? null;
+
+          return {
+            ...assignment,
+            manual_rating,
+            final_rating,
+            rating: final_rating,
+          };
+        })
       );
 
       // Clear the local rating state since it's now saved
@@ -589,7 +625,8 @@ export default function AdminDashboard() {
                     <th className="px-4 py-3 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200">District</th>
                     <th className="px-4 py-3 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200">Mandal</th>
                     <th className="px-4 py-3 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200">Submission Date</th>
-                    <th className="px-4 py-3 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200">Rating</th>
+                    <th className="px-4 py-3 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200">AI Rating</th>
+                    <th className="px-4 py-3 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200">Manual / Final Rating</th>
                     <th className="px-4 py-3 bg-gray-100 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200">Actions</th>
                   </tr>
                 </thead>
@@ -672,6 +709,13 @@ export default function AdminDashboard() {
                           <div className="text-xs text-gray-400">
                             {new Date(assignment.submission_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                           </div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">
+                            {assignment.ai_rating !== null && assignment.ai_rating !== undefined
+                              ? `${assignment.ai_rating.toFixed(1)}/10`
+                              : '—'}
+                          </span>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex items-center">

@@ -138,13 +138,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             {user && (
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <Avatar alt={user.name} className="h-9 w-9">
-                    <AvatarImage src={user.avatarUrl} alt={user.name} />
-                    <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+                  <Avatar alt={user.tenantName} className="h-9 w-9">
+                    <AvatarImage src={user.avatarUrl} alt={user.tenantName} />
+                    <AvatarFallback>{getInitials(user.tenantName || 'T')}</AvatarFallback>
                   </Avatar>
                   <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                    <p className="text-xs text-gray-500">{user.tenantName}</p>
+                    <p className="text-sm font-medium text-gray-900">{user.tenantName}</p>
                   </div>
                 </div>
                 <DropdownMenu>
@@ -232,13 +231,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
           <div className="absolute bottom-16 left-0 right-0 bg-white rounded-t-lg shadow-lg p-4" onClick={(e) => e.stopPropagation()}>
             {user && (
               <div className="flex items-center space-x-3 mb-4 pb-4 border-b">
-                <Avatar alt={user.name} className="h-10 w-10">
-                  <AvatarImage src={user.avatarUrl} alt={user.name} />
-                  <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+                <Avatar alt={user.tenantName} className="h-10 w-10">
+                  <AvatarImage src={user.avatarUrl} alt={user.tenantName} />
+                  <AvatarFallback>{getInitials(user.tenantName || 'T')}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                  <p className="text-xs text-gray-500">{user.tenantName}</p>
+                  <p className="text-sm font-medium text-gray-900">{user.tenantName}</p>
                 </div>
               </div>
             )}

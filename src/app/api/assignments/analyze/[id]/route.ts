@@ -93,7 +93,9 @@ export async function POST(
 
     await sql`
       UPDATE assignments
-      SET rating = ${rating}, updated_at = NOW()
+      SET ai_rating = ${rating},
+          final_rating = COALESCE(manual_rating, ${rating}),
+          updated_at = NOW()
       WHERE id = ${assignmentId}
     `;
 

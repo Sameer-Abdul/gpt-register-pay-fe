@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar, PlusCircle, List, LogOut, Upload } from 'lucide-react';
 import { getTenantById } from '@/lib/eventDb';
 import Image from 'next/image';
+import DynamicTenantHeader from '@/app/components/DynamicTenantHeader';
 
 export default function DashboardLayout({
   children,
@@ -175,6 +176,9 @@ export default function DashboardLayout({
 
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Dynamic tenant header fetched from tenant_master */}
+        <DynamicTenantHeader />
+
         {/* Top Navigation Bar */}
         <nav className="bg-amber-100 shadow-sm w-full">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16">
@@ -184,74 +188,8 @@ export default function DashboardLayout({
                 <h1 className="text-xl font-bold text-amber-900">Dashboard</h1>
               </div>
               
-              {/* Centered Tenant info */}
-              <div className="flex-1 flex justify-center">
-                <div className="flex items-start space-x-3">
-                  {/* Left Avatar */}
-                  <div className="relative h-16 w-16 rounded-full overflow-hidden border-2 border-amber-300 shrink-0">
-                    {(() => {
-                      if (!tenant?.image_url || tenant.image_url === '/default-avatar.png') {
-                        return (
-                          <div className="h-full w-full flex items-center justify-center bg-amber-200 text-amber-900 font-medium text-lg">
-                            {tenant?.name?.charAt(0)?.toUpperCase() || 
-                             session?.user?.name?.charAt(0)?.toUpperCase() || 
-                             'U'}
-                          </div>
-                        );
-                      }
-                      return (
-                        <img
-                          src={tenant.image_url}
-                          alt={tenant.name || 'User'}
-                          className="h-full w-full object-cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = '/default-avatar.png';
-                            target.onerror = null;
-                          }}
-                        />
-                      );
-                    })()}
-                  </div>
-                  
-                  {/* Tenant Name and Email - Vertical Stack */}
-                  <div className="flex flex-col mt-3">
-                    <p className="text-lg font-semibold text-amber-950 leading-tight">
-                      {tenant?.name || session?.user?.name || 'User'}
-                    </p>
-                    <p className="text-xs text-amber-800 leading-tight">
-                      {session?.user?.email || ''}
-                    </p>
-                  </div>
-                  
-                  {/* Right Avatar */}
-                  <div className="relative h-16 w-16 rounded-full overflow-hidden border-2 border-amber-300 shrink-0">
-                    {(() => {
-                      if (!tenant?.image_url || tenant.image_url === '/default-avatar.png') {
-                        return (
-                          <div className="h-full w-full flex items-center justify-center bg-amber-200 text-amber-900 font-medium text-lg">
-                            {tenant?.name?.charAt(0)?.toUpperCase() || 
-                             session?.user?.name?.charAt(0)?.toUpperCase() || 
-                             'U'}
-                          </div>
-                        );
-                      }
-                      return (
-                        <img
-                          src={tenant.image_url}
-                          alt={tenant.name || 'User'}
-                          className="h-full w-full object-cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = '/default-avatar.png';
-                            target.onerror = null;
-                          }}
-                        />
-                      );
-                    })()}
-                  </div>
-                </div>
-              </div>
+              {/* Center area intentionally left empty to avoid showing user details */}
+              <div className="flex-1 flex justify-center" />
               
               {/* Right side - Sign out button */}
               <div className="flex-1 flex justify-end">

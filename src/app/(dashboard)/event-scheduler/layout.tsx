@@ -53,14 +53,14 @@ export default function EventSchedulerLayout({
                   {/* Center heading with images */}
                   <div className="flex-1 px-4">
                     <div className="flex items-center justify-center space-x-6">
-                      <img src="/globe.jpeg" alt="Globe" className="h-20 w-auto object-contain" />
+                      
                       <div className="text-center space-y-0.5">
                         <h1 className="text-xl md:text-2xl font-bold text-orange-600 leading-tight">LEAD INDIA FOUNDATION</h1>
                         <h2 className="text-lg md:text-xl font-bold text-red-900">&</h2> 
                         <h2 className="text-lg md:text-xl font-bold text-pink-800">TRSMA</h2>
                         <h3 className="text-xs md:text-sm font-bold text-green-700 leading-tight">PRESENT KALAM&apos;S BEST TEACHER AWARD</h3>
                       </div>
-                      <img src="/trsma.jpeg" alt="TRSMA" className="h-20 w-auto object-contain" />
+                      
                     </div>
                   </div>
                   
