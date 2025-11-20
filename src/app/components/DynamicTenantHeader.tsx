@@ -4,24 +4,18 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { getSession } from 'next-auth/react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface TenantHeaderData {
-  tenantId: string;
-  name: string;
-  imageLeft: string | null;
-  imageRight: string | null;
+  id: string;
+  tenant_name: string;
+  left_image_url: string | null;
+  right_image_url: string | null;
   header_format: 'single' | 'double' | 'multiline' | 'auto' | 'custom';
   header_custom_lines: string | null;
 }
 
 const DynamicTenantHeader = () => {
-  // Don't render if window is not defined (server-side rendering)
-  if (typeof window === 'undefined') {
-    console.log('Server-side rendering, skipping DynamicTenantHeader');
-    return null;
-  }
-  
-  console.log('Rendering DynamicTenantHeader on client side');
   const [headerData, setHeaderData] = useState<TenantHeaderData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +36,7 @@ const DynamicTenantHeader = () => {
             // Store in localStorage for persistence
             localStorage.setItem('tenant_id', session.user.tenantId);
             // Use the tenantId from session
-            fetchTenantData(session.user.tenantId);
+            await fetchTenantData(session.user.tenantId);
             return;
           }
         } catch (err) {
@@ -60,7 +54,7 @@ const DynamicTenantHeader = () => {
           return;
         }
         
-        fetchTenantData(tenantId);
+        await fetchTenantData(tenantId);
       } catch (err) {
         console.error('Error in fetchTenantHeader:', err);
         setError('Failed to load tenant information');
@@ -70,57 +64,82 @@ const DynamicTenantHeader = () => {
     
     const fetchTenantData = async (tenantId: string) => {
       try {
-        
-        const apiUrl = `/api/tenants/${tenantId}/header`;
-        console.log('Fetching from API:', apiUrl);
-        
-        const response = await fetch(apiUrl, {
-          cache: 'no-store',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-        
-        console.log('Response status:', response.status);
+        setLoading(true);
+        const response = await fetch(`/api/tenants/${tenantId}/header`);
         
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Error response:', errorText);
-          throw new Error(`Failed to fetch tenant header: ${response.status} ${response.statusText}`);
+          throw new Error(`Failed to fetch tenant data: ${response.statusText}`);
         }
         
         const data = await response.json();
-        console.log('API response data:', JSON.stringify(data, null, 2));
         
         if (data.success && data.data) {
-          console.log('Setting header data:', data.data);
+          console.log('Received tenant data:', data.data);
           setHeaderData(data.data);
         } else {
-          throw new Error(data.error || 'Invalid response format');
+          throw new Error(data.error || 'Invalid tenant data format');
         }
-      } catch (err: unknown) {
-        console.error('Error in fetchTenantHeader:', err);
-        const errorMessage = err instanceof Error ? err.message : 'Failed to load header';
-        setError(errorMessage);
+      } catch (err) {
+        console.error('Error fetching tenant data:', err);
+        setError('Failed to load tenant data');
       } finally {
         setLoading(false);
       }
     };
-
-    fetchTenantHeader();
+    
+    // Only run on client side
+    if (typeof window !== 'undefined') {
+      fetchTenantHeader();
+    }
   }, [pathname]);
+  
+  // Don't render anything during server-side rendering
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  
+  if (loading) {
+    return (
+      <div className="w-full bg-white shadow-sm py-4">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-16 w-16 rounded-md" />
+            <div className="flex-1 px-4">
+              <Skeleton className="h-6 w-64 mx-auto mb-2" />
+              <Skeleton className="h-4 w-48 mx-auto" />
+            </div>
+            <Skeleton className="h-16 w-16 rounded-md" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="w-full bg-red-50 border-l-4 border-red-400 p-4">
+        <div className="container mx-auto">
+          <p className="text-red-700">{error}</p>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!headerData) {
+    return null;
+  }
 
   const renderHeaderContent = () => {
     if (!headerData) return null;
 
-    const { name, header_format, header_custom_lines } = headerData;
+    const { tenant_name, header_format, header_custom_lines } = headerData;
 
     switch (header_format) {
       case 'single':
-        return <h1 className="text-center text-xl font-bold">{name}</h1>;
+        return <h1 className="text-center text-xl font-bold">{tenant_name}</h1>;
 
       case 'double': {
-        const words = name.split(' ');
+        const words = tenant_name.split(' ');
         const mid = Math.ceil(words.length / 2);
         const firstLine = words.slice(0, mid).join(' ');
         const secondLine = words.slice(mid).join(' ');
@@ -136,7 +155,7 @@ const DynamicTenantHeader = () => {
       case 'multiline':
         return (
           <div className="text-center">
-            {name.split(' ').map((word, index) => (
+            {tenant_name.split(' ').map((word: string, index: number) => (
               <h1 key={index} className="text-xl font-bold">
                 {word}
               </h1>
@@ -147,7 +166,7 @@ const DynamicTenantHeader = () => {
       case 'custom':
         return (
           <div className="text-center">
-            {header_custom_lines?.split('\n').map((line, index) => (
+            {header_custom_lines?.split('\n').map((line: string, index: number) => (
               <h1 key={index} className="text-xl font-bold">
                 {line}
               </h1>
@@ -157,13 +176,13 @@ const DynamicTenantHeader = () => {
 
       case 'auto':
       default: {
-        const words = name.split(' ');
+        const words = tenant_name.split(' ');
         if (words.length <= 3) {
-          return <h1 className="text-center text-xl font-bold">{name}</h1>;
+          return <h1 className="text-center text-xl font-bold">{tenant_name}</h1>;
         } else {
           return (
             <div className="text-center">
-              {words.map((word, index) => (
+              {words.map((word: string, index: number) => (
                 <h1 key={index} className="text-xl font-bold">
                   {word}
                 </h1>
@@ -175,55 +194,50 @@ const DynamicTenantHeader = () => {
     }
   };
 
-  if (loading) {
-    console.log('Loading tenant header...');
-    return <div className="p-2 text-center text-gray-500">Loading header...</div>;
-  }
-  
-  if (error) {
-    console.error('Error in DynamicTenantHeader:', error);
-    return (
-      <div className="p-2 text-center text-red-500">
-        Error loading header: {error}
-      </div>
-    );
-  }
-
   return (
-    <header className="w-full py-4 px-4 bg-white shadow-sm">
-      <div className="container mx-auto flex items-center justify-between">
-        {/* Left Image */}
-        <div className="w-24 h-24 relative">
-          {headerData?.imageLeft && (
-            <Image
-              src={headerData.imageLeft}
-              alt="Left Header Logo"
-              fill
-              className="object-contain"
-              priority
-            />
+    <div className="w-full bg-white shadow-sm">
+      <div className="container mx-auto px-4 py-2">
+        <div className="flex items-center justify-between">
+          {/* Left Image */}
+          {headerData.left_image_url && (
+            <div className="shrink-0">
+              <Image
+                src={`${process.env.NEXT_PUBLIC_BACKEND_URL || ''}${headerData.left_image_url}`}
+                alt={`${headerData.tenant_name} Logo`}
+                width={80}
+                height={80}
+                className="h-20 w-auto object-contain"
+                priority
+              />
+            </div>
           )}
-        </div>
-
-        {/* Center Content */}
-        <div className="flex-1 mx-4">
-          {renderHeaderContent()}
-        </div>
-
-        {/* Right Image */}
-        <div className="w-24 h-24 relative">
-          {headerData?.imageRight && (
-            <Image
-              src={headerData.imageRight}
-              alt="Right Header Logo"
-              fill
-              className="object-contain"
-              priority
-            />
+          
+          {/* Center Content */}
+          <div className="flex-1 px-4">
+            {renderHeaderContent()}
+            {headerData.header_custom_lines && (
+              <p className="text-sm text-gray-600 mt-1 text-center">
+                {headerData.header_custom_lines}
+              </p>
+            )}
+          </div>
+          
+          {/* Right Image */}
+          {headerData.right_image_url && (
+            <div className="shrink-0">
+              <Image
+                src={`${process.env.NEXT_PUBLIC_BACKEND_URL || ''}${headerData.right_image_url}`}
+                alt={`${headerData.tenant_name} Logo`}
+                width={80}
+                height={80}
+                className="h-20 w-auto object-contain"
+                priority
+              />
+            </div>
           )}
         </div>
       </div>
-    </header>
+    </div>
   );
 };
 
