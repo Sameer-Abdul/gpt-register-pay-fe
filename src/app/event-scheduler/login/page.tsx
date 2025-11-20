@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { signIn, signOut, useSession } from 'next-auth/react';
+import { signIn, signOut, useSession, getSession } from 'next-auth/react';
 
 // Utility function to clear all auth-related cookies
 const clearAuthCookies = () => {
@@ -242,6 +242,22 @@ export default function LoginPage() {
         password,
         callbackUrl: callbackUrl
       });
+      
+      // If login was successful, store tenant ID in localStorage
+      if (result?.ok && !result?.error) {
+        try {
+          // We need to get the session to access the tenant ID
+          const session = await getSession();
+          if (session?.user?.tenantId) {
+            console.log('Storing tenant ID in localStorage:', session.user.tenantId);
+            localStorage.setItem('tenant_id', session.user.tenantId);
+          } else {
+            console.warn('No tenant ID found in session after login');
+          }
+        } catch (error) {
+          console.error('Error getting session after login:', error);
+        }
+      }
       
       console.log('[Login] SignIn result:', {
         error: result?.error || 'No error',

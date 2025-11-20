@@ -104,15 +104,15 @@ async function validateUser(credentials: { email: string; password: string }) {
     // Generate access token
     const accessToken = generateAccessToken(user.id);
     
-    // Return user data without password
+    // Return user object with required fields including tenant_id
     return {
       id: user.id,
       email: user.email,
-      name: user.name,
+      name: user.name || user.email.split('@')[0],
       role: user.is_admin ? 'admin' : 'user',
       isAdmin: user.is_admin,
       tenantId: user.tenant_id,
-      accessToken
+      accessToken: generateAccessToken(user.id)
     };
   } catch (error) {
     console.error('Validation error:', error);

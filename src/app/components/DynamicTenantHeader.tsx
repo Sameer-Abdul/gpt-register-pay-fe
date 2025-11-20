@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+import { getSession } from 'next-auth/react';
 
 interface TenantHeaderData {
   tenantId: string;
@@ -16,8 +17,11 @@ interface TenantHeaderData {
 const DynamicTenantHeader = () => {
   // Don't render if window is not defined (server-side rendering)
   if (typeof window === 'undefined') {
+    console.log('Server-side rendering, skipping DynamicTenantHeader');
     return null;
   }
+  
+  console.log('Rendering DynamicTenantHeader on client side');
   const [headerData, setHeaderData] = useState<TenantHeaderData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,31 +30,63 @@ const DynamicTenantHeader = () => {
   useEffect(() => {
     const fetchTenantHeader = async () => {
       try {
-        // Get tenantId from localStorage
-        const tenantId = typeof window !== 'undefined' ? localStorage.getItem('tenant_id') : null;
+        console.log('Fetching tenant header...');
         
+        // Get tenantId from localStorage
+        const tenantId = localStorage.getItem('tenant_id');
+        console.log('Retrieved tenantId from localStorage:', tenantId);
+        
+        // Also check session storage as a fallback
         if (!tenantId) {
+          console.log('No tenantId found in localStorage, checking session...');
+          try {
+            const session = await getSession();
+            console.log('Session data:', session);
+            if (session?.user?.tenantId) {
+              console.log('Found tenantId in session, saving to localStorage');
+              localStorage.setItem('tenant_id', session.user.tenantId);
+              window.location.reload(); // Reload to get the tenant ID from localStorage
+              return;
+            }
+          } catch (err) {
+            console.error('Error getting session:', err);
+          }
+          
+          console.log('No tenantId found in session either');
+          setError('Tenant information not found. Please log in again.');
           setLoading(false);
           return;
         }
         
-        const response = await fetch(`/api/tenants/${tenantId}/header`);
-         console.log('Response status:', response.status); 
+        const apiUrl = `/api/tenants/${tenantId}/header`;
+        console.log('Fetching from API:', apiUrl);
+        
+        const response = await fetch(apiUrl, {
+          cache: 'no-store',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        console.log('Response status:', response.status);
+        
         if (!response.ok) {
           const errorText = await response.text();
-          console.error('Error response:', errorText); // Log the full error response
+          console.error('Error response:', errorText);
           throw new Error(`Failed to fetch tenant header: ${response.status} ${response.statusText}`);
         }
         
         const data = await response.json();
+        console.log('API response data:', JSON.stringify(data, null, 2));
         
         if (data.success && data.data) {
+          console.log('Setting header data:', data.data);
           setHeaderData(data.data);
         } else {
           throw new Error(data.error || 'Invalid response format');
         }
       } catch (err: unknown) {
-        console.error('Error fetching tenant header:', err);
+        console.error('Error in fetchTenantHeader:', err);
         const errorMessage = err instanceof Error ? err.message : 'Failed to load header';
         setError(errorMessage);
       } finally {
@@ -127,12 +163,14 @@ const DynamicTenantHeader = () => {
   };
 
   if (loading) {
-    return <div className="h-20 flex items-center justify-center">Loading header...</div>;
+    console.log('Loading tenant header...');
+    return <div className="p-2 text-center text-gray-500">Loading header...</div>;
   }
-
+  
   if (error) {
+    console.error('Error in DynamicTenantHeader:', error);
     return (
-      <div className="h-20 flex items-center justify-center text-red-500">
+      <div className="p-2 text-center text-red-500">
         Error loading header: {error}
       </div>
     );
