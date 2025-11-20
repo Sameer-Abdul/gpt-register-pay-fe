@@ -87,10 +87,10 @@ export function MeritSection() {
       
       const result = await response.json();
       console.log('Merit data received:', result);
-      
-      // The data is nested under the 'data' property in the response
-      const { data } = result;
-      console.log('Extracted data:', data);
+
+      // Support both shapes: { data: {...} } and plain {...}
+      const data = (result && result.data) ? result.data : result;
+      console.log('Normalized merit data:', data);
       
       // Log the structure of the data we're trying to set
       console.log('Top state performers:', data?.topStatePerformers);

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { sql } from "@vercel/postgres";
+import pool from "@/lib/db";
 import { Buffer } from "buffer";
 
 const parsePdf = async (buffer: Buffer): Promise<string> => {
@@ -50,30 +50,34 @@ export async function POST(
       );
     }
 
-    const userResult = await sql`
-      SELECT is_admin FROM register WHERE email = ${session.user.email}
-    `;
-    if (!userResult.rows[0]?.is_admin) {
-      return NextResponse.json(
-        { success: false, error: "Forbidden" },
-        { status: 403 }
+    const client = await pool.connect();
+    try {
+      const userResult = await client.query(
+        "SELECT is_admin FROM register WHERE email = $1",
+        [session.user.email]
       );
-    }
+      if (!userResult.rows[0]?.is_admin) {
+        return NextResponse.json(
+          { success: false, error: "Forbidden" },
+          { status: 403 }
+        );
+      }
 
-    const assignmentResult = await sql`
-      SELECT a.*, r.email as user_email
-      FROM assignments a
-      JOIN register r ON a.register_id = r.id
-      WHERE a.id = ${assignmentId}
-    `;
-    if (assignmentResult.rows.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "Assignment not found" },
-        { status: 404 }
+      const assignmentResult = await client.query(
+        `SELECT a.*, r.email as user_email
+         FROM assignments a
+         JOIN register r ON a.register_id = r.id
+         WHERE a.id = $1`,
+        [assignmentId]
       );
-    }
+      if (assignmentResult.rows.length === 0) {
+        return NextResponse.json(
+          { success: false, error: "Assignment not found" },
+          { status: 404 }
+        );
+      }
 
-    const assignment = assignmentResult.rows[0];
+      const assignment = assignmentResult.rows[0];
 
     if (!assignment.file_data?.data) {
       return NextResponse.json(
@@ -82,28 +86,32 @@ export async function POST(
       );
     }
 
-    const pdfText = await parsePdf(Buffer.from(assignment.file_data.data));
-    const prompt = `Rate this assignment from 0–10:\n${pdfText}`;
-    const ollamaResponse = await analyzeWithOllama(prompt);
+      const pdfText = await parsePdf(Buffer.from(assignment.file_data.data));
+      const prompt = `Rate this assignment from 0–10:\n${pdfText}`;
+      const ollamaResponse = await analyzeWithOllama(prompt);
 
-    const ratingMatch = ollamaResponse.response?.match(/\d+/);
-    const rating = ratingMatch
-      ? Math.min(10, Math.max(0, parseInt(ratingMatch[0], 10)))
-      : 5;
+      const ratingMatch = ollamaResponse.response?.match(/\d+/);
+      const rating = ratingMatch
+        ? Math.min(10, Math.max(0, parseInt(ratingMatch[0], 10)))
+        : 5;
 
-    await sql`
-      UPDATE assignments
-      SET ai_rating = ${rating},
-          final_rating = COALESCE(manual_rating, ${rating}),
-          updated_at = NOW()
-      WHERE id = ${assignmentId}
-    `;
+      await client.query(
+        `UPDATE assignments
+         SET ai_rating = $1,
+             final_rating = COALESCE(manual_rating, $1),
+             updated_at = NOW()
+         WHERE id = $2`,
+        [rating, assignmentId]
+      );
 
-    return NextResponse.json({
-      success: true,
-      id: assignmentId,
-      data: { rating, score: rating * 10 },
-    });
+      return NextResponse.json({
+        success: true,
+        id: assignmentId,
+        data: { rating, score: rating * 10 },
+      });
+    } finally {
+      client.release();
+    }
   } catch (error: any) {
     return NextResponse.json(
       {
