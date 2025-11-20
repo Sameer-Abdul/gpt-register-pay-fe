@@ -299,9 +299,8 @@ export default function AdminDashboard() {
     setSavingRatings(prev => ({ ...prev, [assignmentId]: true }));
     
     try {
-      // Call backend (Render) analyze endpoint directly to avoid Vercel API 404s
-      const apiBase = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiBase}/assignments/${assignmentId}/analyze`, {
+      // Use local Next.js API for AI analysis
+      const response = await fetch(`/api/assignments/analyze/${assignmentId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -322,18 +321,18 @@ export default function AdminDashboard() {
       
       // Handle multiple possible response formats (Nest / Next)
       const rating =
-        typeof data.aiRating === 'number'
-          ? data.aiRating
+        typeof data?.data?.rating === 'number'
+          ? data.data.rating
           : typeof data.rating === 'number'
             ? data.rating
-            : typeof data.data?.rating === 'number'
-              ? data.data.rating
+            : typeof data.aiRating === 'number'
+              ? data.aiRating
               : undefined;
       const score =
-        typeof data.score === 'number'
-          ? data.score
-          : typeof data.data?.score === 'number'
-            ? data.data.score
+        typeof data?.data?.score === 'number'
+          ? data.data.score
+          : typeof data.score === 'number'
+            ? data.score
             : typeof rating === 'number'
               ? rating * 10
               : undefined;
@@ -409,11 +408,10 @@ export default function AdminDashboard() {
       
       console.log('Request body:', requestBody);
       
-      const apiBase = process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-      const response = await fetch(`${apiBase}/assignments/${id}`, {
+      // Use local Next.js API for saving manual rating
+      const response = await fetch(`/api/assignments/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        credentials: 'same-origin',
         body: JSON.stringify(requestBody),
       });
 
@@ -626,22 +624,26 @@ export default function AdminDashboard() {
                     <th className="px-4 py-3 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200">Mandal</th>
                     <th className="px-4 py-3 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200">Submission Date</th>
                     <th className="px-4 py-3 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200">AI Rating</th>
-                    <th className="px-4 py-3 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200">Manual / Final Rating</th>
+                    <th className="px-4 py-3 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200">Manual Rating</th>
+                    <th className="px-4 py-3 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200">Final Rating</th>
                     <th className="px-4 py-3 bg-gray-100 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
                   {assignments.map((assignment, index) => {
                     const rowClass = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
-                    const rating = assignment.rating !== null ? Number(assignment.rating) : null;
+                    const rating =
+                      assignment.final_rating !== null && assignment.final_rating !== undefined
+                        ? Number(assignment.final_rating)
+                        : null;
                     let ratingColor = 'bg-gray-100 text-gray-800';
-                    
+
                     if (rating !== null) {
                       if (rating >= 8) ratingColor = 'bg-green-100 text-green-800';
                       else if (rating >= 5) ratingColor = 'bg-yellow-100 text-yellow-800';
                       else if (rating > 0) ratingColor = 'bg-orange-100 text-orange-800';
                     }
-                    
+
                     return (
                       <tr key={assignment.id} className={`${rowClass} hover:bg-blue-50 transition-colors`}>
                         <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
@@ -727,33 +729,31 @@ export default function AdminDashboard() {
                               className={`w-16 px-2 py-1 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-center ${ratingColor}`}
                               value={typeof ratings[assignment.id] !== 'undefined' 
                                 ? ratings[assignment.id] ?? '' 
-                                : assignment.rating ?? ''}
+                                : assignment.manual_rating ?? ''}
                               onChange={(e) => {
                                 const value = e.target.value;
                                 if (value === '' || (!isNaN(Number(value)) && Number(value) >= 0 && Number(value) <= 10)) {
                                   handleRatingChange(assignment.id, value);
                                 }
                               }}
-                              onBlur={(e) => {
-                                const value = e.target.value;
-                                const numValue = value === '' || value === null 
-                                  ? 0 
-                                  : Math.min(10, Math.max(0, Number(value)));
-                                
-                                handleRatingChange(assignment.id, numValue.toString());
-                                handleSaveRating(assignment.id);
-                              }}
                               placeholder="0-10"
                             />
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                          <div className="flex items-center">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${ratingColor}`}>
+                              {rating !== null ? `${rating.toFixed(1)}/10` : '—'}
+                            </span>
                             {rating !== null && (
                               <div className="ml-2 w-16">
                                 <div className="w-full bg-gray-200 rounded-full h-2">
-                                  <div 
+                                  <div
                                     className={`h-2 rounded-full ${
-                                      rating >= 8 ? 'bg-green-500' : 
-                                      rating >= 5 ? 'bg-yellow-500' : 
+                                      rating >= 8 ? 'bg-green-500' :
+                                      rating >= 5 ? 'bg-yellow-500' :
                                       'bg-red-500'
-                                    }`} 
+                                    }`}
                                     style={{ width: `${rating * 10}%` }}
                                   ></div>
                                 </div>
