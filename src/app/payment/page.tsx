@@ -4,8 +4,18 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Formik, Form, Field, ErrorMessage, FormikHelpers } from 'formik';
 import * as Yup from 'yup';
-import Image from 'next/image';
-import axios from 'axios';
+import dynamic from 'next/dynamic';
+import { Copy, Check } from 'lucide-react';
+import { toast } from 'react-hot-toast';
+
+// Dynamically import QRCode to avoid SSR issues
+const QRCode = dynamic(
+  () => import('qrcode.react').then((mod) => mod.QRCodeSVG),
+  {
+    ssr: false,
+    loading: () => <div className="w-[180px] h-[180px] bg-gray-100 animate-pulse rounded-lg" />
+  }
+) as any; // Type assertion to fix dynamic import type issues
 
 interface FormValues {
   utrNumber: string;
@@ -18,7 +28,14 @@ export default function PaymentPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [registrationId, setRegistrationId] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Replace with your UPI ID
+  const upiId = '8790326809@ybl';
+  const recipientName = 'Mohammed Abdul Sameer';
+  const amount = '100';//Default amount in paise (1000 = ₹10.00)
+  const upiLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(recipientName)}&mc=0000&tid=${Date.now()}&tn=Payment%20for%20Registration&am=${amount}&cu=INR`;
 
   useEffect(() => {
     const id = sessionStorage.getItem('registrationId');
@@ -174,16 +191,53 @@ export default function PaymentPage() {
             {submitError}
           </div>
         )}
-        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-  <p className="text-sm font-medium text-gray-700 mb-2">Scan to Pay</p>
-  <div className="flex justify-center">
-    <img 
-      src="/qr_code.jpeg" 
-      alt="Payment QR Code" 
-      className="h-48 w-48 object-contain"
-    />
+        <div className="mt-4 p-6 bg-white rounded-lg border border-gray-200">
+  <p className="text-sm font-medium text-gray-700 mb-4 text-center">Scan to Pay with UPI</p>
+  <div className="flex flex-col items-center">
+    <div className="p-3 bg-white rounded-lg border border-gray-200 flex items-center justify-center">
+      <div className="p-3 bg-white rounded-lg border border-gray-200">
+      <div className="w-[180px] h-[180px] flex items-center justify-center">
+        <QRCode 
+          value={upiLink}
+          size={180}
+          level="H"
+          includeMargin={true}
+        />
+      </div>
+    </div>
+    </div>
+    
+    <div className="mt-4 flex items-center space-x-2 bg-gray-50 px-4 py-2 rounded-lg">
+      <span className="text-sm font-mono text-gray-800">{upiId}</span>
+      <button
+        type="button"
+        onClick={() => {
+          navigator.clipboard.writeText(upiId);
+          setIsCopied(true);
+          toast.success('UPI ID copied to clipboard');
+          setTimeout(() => setIsCopied(false), 2000);
+        }}
+        className="p-1.5 rounded-md hover:bg-gray-100 transition-colors"
+        title="Copy UPI ID"
+      >
+        {isCopied ? (
+          <Check className="h-4 w-4 text-green-500" />
+        ) : (
+          <Copy className="h-4 w-4 text-gray-500" />
+        )}
+      </button>
+    </div>
+    
+    <div className="mt-3 text-center">
+      <p className="text-xs text-gray-500 mb-2">Or send money directly to the UPI ID above</p>
+      <a 
+        href={upiLink}
+        className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+      >
+        Open in UPI App
+      </a>
+    </div>
   </div>
- 
 </div>
 
         <Formik
@@ -223,12 +277,10 @@ export default function PaymentPage() {
                   <div className="space-y-1 text-center">
                     {previewUrl ? (
                       <div className="relative">
-                        <Image
+                        <img
                           src={previewUrl}
-                          alt="Payment preview"
-                          width={200}
-                          height={200}
-                          className="mx-auto max-h-48 object-contain"
+                          alt="Preview"
+                          className="mt-2 w-full h-48 object-contain border rounded"
                         />
                         <button
                           type="button"

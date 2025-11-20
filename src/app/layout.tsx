@@ -7,6 +7,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import './globals.css';
+import DynamicTenantHeader from '@/app/components/DynamicTenantHeader';
 
 // Disable SSR for the entire app to avoid hydration issues
 // This is a workaround for Next.js 13+ with NextAuth
@@ -32,6 +33,8 @@ export default function RootLayout({
         <SessionProvider>
           <AuthProvider>
             <div className="min-h-full">
+              {/* Dynamic Tenant Header */}
+              <DynamicTenantHeader />
               <nav className="bg-white shadow-sm py-2">
                 <div className="w-full max-w-6xl mx-auto px-2">
                   <div className="flex items-center justify-between">
