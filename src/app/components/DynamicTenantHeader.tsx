@@ -22,14 +22,16 @@ const DynamicTenantHeader = () => {
   useEffect(() => {
     const fetchTenantHeader = async () => {
       try {
-        // Extract tenantId from the URL or use a default one
-        // This assumes the URL contains the tenantId, adjust according to your routing
-        const tenantId = 'default-tenant'; // Replace with actual tenant ID retrieval logic
+        // Using TEN001 as the default tenant ID
+        // In a production app, this should come from user session or URL
+        const tenantId = 'TEN001'; // Using the first tenant from the database
         
         const response = await fetch(`/api/tenants/${tenantId}/header`);
-        
+         console.log('Response status:', response.status); 
         if (!response.ok) {
-          throw new Error('Failed to fetch tenant header');
+          const errorText = await response.text();
+          console.error('Error response:', errorText); // Log the full error response
+          throw new Error(`Failed to fetch tenant header: ${response.status} ${response.statusText}`);
         }
         
         const data = await response.json();
