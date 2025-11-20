@@ -1,45 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
-  req: NextRequest, 
-  context: { params: { id: string } }
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Next.js 16 sometimes wraps params in a Promise → use await safely
     const { id } = await context.params;
 
     const backendUrl = process.env.BACKEND_URL;
     if (!backendUrl) {
-      throw new Error("BACKEND_URL is not defined in environment variables");
+      return NextResponse.json(
+        { success: false, error: "BACKEND_URL is not set" },
+        { status: 500 }
+      );
     }
 
     const res = await fetch(`${backendUrl}/tenants/${id}/header`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
       cache: "no-store",
     });
 
-    if (!res.ok) {
-      return NextResponse.json({
-        success: false,
-        error: "Failed to fetch tenant header from backend",
-      }, { status: 500 });
-    }
-
     const data = await res.json();
+
+    if (!res.ok) {
+      return NextResponse.json(
+        { success: false, error: data.error || "Backend error" },
+        { status: res.status }
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      data
+      data: data.data,
     });
-    
-  } catch (error) {
-    console.error('Error in tenant header API:', error);
+  } catch (error: any) {
+    console.error("Tenant Header API Error:", error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to process tenant header request',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
+      { success: false, error: error.message || "Unexpected error" },
       { status: 500 }
     );
   }
 }
+
+// 👇 Required for Next.js 16 route handler correctness
+export const dynamic = "force-dynamic";
