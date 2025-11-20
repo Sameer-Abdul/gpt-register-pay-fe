@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { query } from '@/lib/db';
 
 export async function GET(
   req: NextRequest,
@@ -17,46 +18,42 @@ export async function GET(
       );
     }
 
-    const backendUrl = process.env.BACKEND_URL;
-    if (!backendUrl) {
+    const result = await query(
+      `SELECT 
+        tenant_id,
+        name as tenant_name,
+        image_url_left,
+        image_url_right,
+        header_format,
+        header_custom_lines
+       FROM tenant_master
+       WHERE tenant_id = $1
+       LIMIT 1`,
+      [id]
+    );
+
+    if (result.rowCount === 0) {
+      console.error('Tenant not found for ID:', id);
       return NextResponse.json(
-        { success: false, error: "BACKEND_URL is not set" },
-        { status: 500 }
+        { success: false, error: 'Tenant not found' },
+        { status: 404 }
       );
     }
 
-    const apiUrl = `${backendUrl}/tenants/${id}/header`;
-    console.log('Making request to backend:', apiUrl);
-    
-    const res = await fetch(apiUrl, {
-      cache: 'no-store',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-    
-    console.log('Backend response status:', res.status);
+    const row = result.rows[0];
+    const data = {
+      id: row.tenant_id,
+      tenant_name: row.tenant_name,
+      left_image_url: row.image_url_left,
+      right_image_url: row.image_url_right,
+      header_format: row.header_format || 'auto',
+      header_custom_lines: row.header_custom_lines,
+    };
 
-    const data = await res.json();
-
-    if (!res.ok) {
-      console.error('Backend error:', data);
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: data.error || `Backend returned status ${res.status}`,
-          details: data
-        },
-        { status: res.status }
-      );
-    }
-
-    console.log('Successfully retrieved tenant header data');
-    return NextResponse.json({ 
-      success: true, 
-      data: data.data || data // Handle both formats: {data: {...}} and direct response
-    });
+    console.log('Successfully retrieved tenant header data from DB');
+    return NextResponse.json({ success: true, data });
   } catch (err: any) {
+    console.error('Error in tenant header route:', err);
     return NextResponse.json(
       { success: false, error: err.message || "Server error" },
       { status: 500 }

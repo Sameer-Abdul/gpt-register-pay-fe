@@ -7,8 +7,6 @@ import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Calendar, PlusCircle, List, LogOut, Upload } from 'lucide-react';
-import { getTenantById } from '@/lib/eventDb';
-import Image from 'next/image';
 import DynamicTenantHeader from '@/app/components/DynamicTenantHeader';
 
 export default function DashboardLayout({
@@ -21,10 +19,6 @@ export default function DashboardLayout({
   const { data: session, status } = useSession();
   const [isClient, setIsClient] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [tenant, setTenant] = useState<{
-    name: string;
-    image_url: string;
-  } | null>(null);
 
   useEffect(() => {
     console.log('Auth status changed:', { status, session });
@@ -34,61 +28,6 @@ export default function DashboardLayout({
     if (status === 'unauthenticated') {
       console.log('User not authenticated, redirecting to login');
       router.push('/event-scheduler/login');
-    } else if (status === 'authenticated' && session?.user?.id) {
-      console.log('User authenticated, session:', session);
-      
-      const fetchTenantData = async () => {
-        const registerId = session.user.id; // This should be the register ID
-        console.log('Fetching tenant data for register ID:', registerId);
-        
-        if (!registerId) {
-          console.warn('No register ID found in session');
-          setTenant({
-            name: session.user?.name || 'User',
-            image_url: '/default-avatar.png'
-          });
-          return;
-        }
-        
-        try {
-          console.log('Making API request to /api/tenants...');
-          const response = await fetch(`/api/tenants?registerId=${registerId}`);
-          console.log('API Response status:', response.status);
-          
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Error response:', errorText);
-            throw new Error(`Failed to fetch tenant data: ${response.status} ${response.statusText}`);
-          }
-          
-          const result = await response.json();
-          console.log('API Response data:', JSON.stringify(result, null, 2));
-          
-          if (result.success && result.data) {
-            const tenantData = result.data;
-            console.log('Setting tenant data:', tenantData);
-            
-            setTenant({
-              name: tenantData.name || 'No Name',
-              image_url: tenantData.image_url || '/default-avatar.png'
-            });
-          } else {
-            console.warn('No tenant data found for register ID:', registerId);
-            setTenant({
-              name: session.user?.name || 'User',
-              image_url: '/default-avatar.png'
-            });
-          }
-        } catch (error) {
-          console.error('Error in fetchTenantData:', error);
-          setTenant({
-            name: session.user?.name || 'User',
-            image_url: '/default-avatar.png'
-          });
-        }
-      };
-      
-      fetchTenantData();
     }
   }, [status, router, session]);
 
