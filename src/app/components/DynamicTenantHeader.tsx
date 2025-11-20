@@ -86,8 +86,20 @@ const DynamicTenantHeader = () => {
         const data = await response.json();
         
         if (data.success && data.data) {
-          console.log('Received tenant data:', data.data);
-          setHeaderData(data.data);
+          console.log('Received raw tenant data:', data.data);
+
+          const src: any = data.data;
+          const normalized: TenantHeaderData = {
+            id: src.id ?? src.tenantId ?? tenantId,
+            tenant_name: src.tenant_name ?? src.name ?? '',
+            left_image_url: src.left_image_url ?? src.imageLeft ?? null,
+            right_image_url: src.right_image_url ?? src.imageRight ?? null,
+            header_format: (src.header_format as TenantHeaderData['header_format']) ?? 'auto',
+            header_custom_lines: src.header_custom_lines ?? null,
+          };
+
+          console.log('Normalized tenant header data:', normalized);
+          setHeaderData(normalized);
         } else {
           throw new Error(data.error || 'Invalid tenant data format');
         }
