@@ -183,7 +183,8 @@ export default function UploadAssignmentPage() {
       const uploadFormData = new FormData();
       uploadFormData.append('file', file);
       
-      const uploadResponse = await fetch(`https://gpt-register-pay-be.onrender.com/assignments/${assignmentId}/upload`, {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://gpt-register-pay-be.onrender.com';
+      const uploadResponse = await fetch(`${backendUrl}/assignments/${assignmentId}/upload`, {
         method: 'POST',
         body: uploadFormData,
       });

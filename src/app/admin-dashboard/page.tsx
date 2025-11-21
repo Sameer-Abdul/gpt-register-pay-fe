@@ -300,27 +300,39 @@ export default function AdminDashboard() {
     
     try {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://gpt-register-pay-be.onrender.com';
-      console.log(`Calling AI analysis endpoint: ${backendUrl}/assignments/analyze/${assignmentId}`);
+      const url = `${backendUrl}/assignments/analyze/${assignmentId}`;
       
-      const response = await fetch(`${backendUrl}/assignments/analyze/${assignmentId}`, {
+      console.log(`Calling AI analysis endpoint: ${url}`);
+      
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          context: 'educational',
-          instructions: 'Please analyze this assignment and provide a rating from 1-10 based on relevance to the context.'
-        }),
+        body: JSON.stringify({ context: '' }), // Required empty context as per requirements
       });
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = errorText ? JSON.parse(errorText) : {};
+        } catch (e) {
+          errorData = { message: errorText || 'Unknown error occurred' };
+        }
+        
         console.error('AI Analysis Error:', {
           status: response.status,
           statusText: response.statusText,
-          errorData
+          error: errorData,
+          responseText: errorText
         });
-        throw new Error(errorData.message || errorData.error || `Server responded with status ${response.status}`);
+        
+        throw new Error(
+          errorData.message || 
+          errorData.error || 
+          `Server responded with status ${response.status}: ${response.statusText}`
+        );
       }
       
       const data = await response.json();
@@ -404,31 +416,28 @@ export default function AdminDashboard() {
       setSavingRatings(prev => ({ ...prev, [id]: true }));
       
       // Get the manual rating value from state
-      const ratingValue = ratings[id];
-      console.log('Manual rating value from state:', { id, rating: ratingValue, ratings });
+      const manualRating = ratings[id];
+      console.log('Manual rating value from state:', { id, rating: manualRating, ratings });
       
-      // Prepare the request body (send both for compatibility)
-      const requestBody = { 
-        manualRating: ratingValue === undefined ? null : ratingValue,
-        rating: ratingValue === undefined ? null : ratingValue,
-      };
-      
-      console.log('Request body:', requestBody);
-      
+      if (manualRating === undefined || manualRating === null) {
+        throw new Error('Rating value is required');
+      }
+
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://gpt-register-pay-be.onrender.com';
-      const url = `${backendUrl}/assignments/${id}/rating`;
-      console.log(`Calling rating update endpoint: ${url}`);
+      const url = `${backendUrl}/assignments/${id}`;
+      
+      console.log(`Calling rating update endpoint: ${url}`, {
+        method: 'PUT',
+        body: { rating: manualRating }
+      });
       
       const response = await fetch(url, {
         method: 'PUT',
         headers: { 
-          'Content-Type': 'application/json', 
+          'Content-Type': 'application/json',
           'Accept': 'application/json' 
         },
-        body: JSON.stringify({
-          manual_rating: ratingValue === undefined ? null : ratingValue,
-          rating: ratingValue === undefined ? null : ratingValue,
-        }),
+        body: JSON.stringify({ rating: manualRating })
       });
 
       console.log('Response status:', response.status);
@@ -461,10 +470,10 @@ export default function AdminDashboard() {
 
       console.log('Rating saved successfully:', responseData);
       
-      // Convert ratingValue to number or null before updating assignments
-      const newManualRating = ratingValue === null || ratingValue === undefined 
+      // Convert manualRating to number or null before updating assignments
+      const newManualRating = manualRating === null || manualRating === undefined 
         ? null 
-        : Number(ratingValue);
+        : Number(manualRating);
       
       // Update the assignments with the new manual and final ratings after successful save
       setAssignments(prev => 
