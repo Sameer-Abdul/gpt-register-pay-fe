@@ -299,25 +299,32 @@ export default function AdminDashboard() {
     setSavingRatings(prev => ({ ...prev, [assignmentId]: true }));
     
     try {
-      // Use local Next.js API for AI analysis
-      const response = await fetch(`/api/assignments/analyze/${assignmentId}`, {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://gpt-register-pay-be.onrender.com';
+      console.log(`Calling AI analysis endpoint: ${backendUrl}/assignments/analyze/${assignmentId}`);
+      
+      const response = await fetch(`${backendUrl}/assignments/analyze/${assignmentId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
           context: 'educational',
-          // Add more context if needed
           instructions: 'Please analyze this assignment and provide a rating from 1-10 based on relevance to the context.'
         }),
       });
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.error('AI Analysis Error:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorData
+        });
         throw new Error(errorData.message || errorData.error || `Server responded with status ${response.status}`);
       }
       
       const data = await response.json();
+      console.log('AI Analysis Response:', data);
       
       // Handle multiple possible response formats (Nest / Next)
       const rating =
@@ -408,11 +415,20 @@ export default function AdminDashboard() {
       
       console.log('Request body:', requestBody);
       
-      // Use local Next.js API for saving manual rating
-      const response = await fetch(`/api/assignments/${id}`, {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://gpt-register-pay-be.onrender.com';
+      const url = `${backendUrl}/assignments/${id}/rating`;
+      console.log(`Calling rating update endpoint: ${url}`);
+      
+      const response = await fetch(url, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify(requestBody),
+        headers: { 
+          'Content-Type': 'application/json', 
+          'Accept': 'application/json' 
+        },
+        body: JSON.stringify({
+          manual_rating: ratingValue === undefined ? null : ratingValue,
+          rating: ratingValue === undefined ? null : ratingValue,
+        }),
       });
 
       console.log('Response status:', response.status);
