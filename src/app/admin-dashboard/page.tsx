@@ -254,7 +254,30 @@ export default function AdminDashboard() {
         setRatings(initialRatings);
         
         console.log('Formatted assignments:', formattedAssignments);
-        setAssignments(formattedAssignments);
+        
+        // Merge new assignments with existing state to preserve ratings
+        setAssignments(prev => {
+          const updatedAssignments = formattedAssignments.map(a => {
+            const existingAssignment = prev.find(p => p.id === a.id);
+            if (!existingAssignment) return a;
+            
+            // Preserve existing ratings if they exist, otherwise use new values
+            return {
+              ...a,
+              ai_rating: existingAssignment.ai_rating !== null ? existingAssignment.ai_rating : a.ai_rating,
+              manual_rating: existingAssignment.manual_rating !== null ? existingAssignment.manual_rating : a.manual_rating,
+              final_rating: existingAssignment.final_rating !== null ? existingAssignment.final_rating : a.final_rating,
+              rating: existingAssignment.rating !== null ? existingAssignment.rating : a.rating
+            };
+          });
+          
+          // If there are any new assignments that weren't in the previous state, add them
+          const newAssignments = formattedAssignments.filter(
+            newA => !prev.some(p => p.id === newA.id)
+          );
+          
+          return [...updatedAssignments, ...newAssignments];
+        });
       } catch (err) {
         console.error('Error fetching assignments:', err);
         if (isMounted) {
