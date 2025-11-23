@@ -341,36 +341,39 @@ export default function AdminDashboard() {
       const data = await response.json();
       console.log('AI Analysis Response:', data);
       
-      // Handle multiple possible response formats (Nest / Next)
-      const rating =
+      // Handle multiple possible response formats (Nest / Next / Nest direct)
+      const ratingRaw =
         typeof data?.data?.rating === 'number'
           ? data.data.rating
           : typeof data.rating === 'number'
             ? data.rating
             : typeof data.aiRating === 'number'
               ? data.aiRating
-              : undefined;
+              : typeof data.ai_rating === 'number'
+                ? data.ai_rating
+                : typeof data?.data?.ai_rating === 'number'
+                  ? data.data.ai_rating
+                  : undefined;
+
+      // Convert to number and validate
+      const numericRating = Number(ratingRaw);
+      if (Number.isNaN(numericRating) || numericRating < 0 || numericRating > 10) {
+        throw new Error('Invalid rating received from AI analysis');
+      }
+
       const score =
         typeof data?.data?.score === 'number'
           ? data.data.score
           : typeof data.score === 'number'
             ? data.score
-            : typeof rating === 'number'
-              ? rating * 10
-              : undefined;
-      
-      // Convert to number and validate
-      const numericRating = Number(rating);
-      if (isNaN(numericRating) || numericRating < 0 || numericRating > 10) {
-        throw new Error('Invalid rating received from AI analysis');
-      }
+            : numericRating * 10;
 
       // Update the local state with the new AI rating and recomputed final rating
       setAssignments(prev =>
         prev.map(assignment => {
           if (assignment.id !== assignmentId) return assignment;
 
-          const ai_rating = rating;
+          const ai_rating = numericRating;
           const manual_rating = assignment.manual_rating;
           const final_rating =
             manual_rating !== null && manual_rating !== undefined
@@ -390,8 +393,8 @@ export default function AdminDashboard() {
       toast({
         title: 'AI Analysis Complete',
         description: score
-          ? `Ollama has provided a rating: ${rating}/10 (Score: ${score})`
-          : `Ollama has provided a rating: ${rating}/10`,
+          ? `Groq AI has provided a rating: ${numericRating}/10 (Score: ${score})`
+          : `Groq AI has provided a rating: ${numericRating}/10`,
       });
     } catch (error: unknown) {
       console.error('Error analyzing assignment:', error);

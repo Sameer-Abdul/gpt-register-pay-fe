@@ -82,9 +82,13 @@ export async function POST(
       const aiRatingRaw =
         typeof backendData?.aiRating === "number"
           ? backendData.aiRating
-          : typeof backendData?.data?.aiRating === "number"
-          ? backendData.data.aiRating
-          : undefined;
+          : typeof backendData?.ai_rating === "number"
+            ? backendData.ai_rating
+            : typeof backendData?.data?.aiRating === "number"
+              ? backendData.data.aiRating
+              : typeof backendData?.data?.ai_rating === "number"
+                ? backendData.data.ai_rating
+                : undefined;
 
       if (
         typeof aiRatingRaw !== "number" ||
