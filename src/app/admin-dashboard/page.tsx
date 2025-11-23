@@ -213,13 +213,21 @@ export default function AdminDashboard() {
         
         // Transform the data to match our Assignment interface
         const formattedAssignments = responseData.map((item: any) => {
-          const aiRating = item.ai_rating ?? null;
-          const manualRating = item.manual_rating ?? null;
-          const finalRating = item.final_rating ?? null;
+          // Convert all ratings to numbers, defaulting to null if not present or invalid
+          const aiRating = item.ai_rating !== null && item.ai_rating !== undefined 
+            ? Number(item.ai_rating) 
+            : null;
+            
+          const manualRating = item.manual_rating !== null && item.manual_rating !== undefined 
+            ? Number(item.manual_rating) 
+            : null;
+            
+          const finalRating = item.final_rating !== null && item.final_rating !== undefined 
+            ? Number(item.final_rating) 
+            : null;
 
           // Prefer final_rating, then manual, then AI for the legacy rating field
-          const legacyRating =
-            finalRating ?? manualRating ?? aiRating ?? null;
+          const legacyRating = finalRating ?? manualRating ?? aiRating;
 
           return {
             id: item.id,
