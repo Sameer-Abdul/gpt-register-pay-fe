@@ -212,44 +212,33 @@ export default function AdminDashboard() {
         console.log(`Received ${responseData.length} assignments`);
         
         // Transform the data to match our Assignment interface
-        const formattedAssignments = responseData.map((item: any) => {
-          // Convert all ratings to numbers, defaulting to null if not present or invalid
-          const aiRating = item.ai_rating !== null && item.ai_rating !== undefined 
-            ? Number(item.ai_rating) 
-            : null;
-            
-          const manualRating = item.manual_rating !== null && item.manual_rating !== undefined 
-            ? Number(item.manual_rating) 
-            : null;
-            
-          const finalRating = item.final_rating !== null && item.final_rating !== undefined 
-            ? Number(item.final_rating) 
-            : null;
-
-          // Prefer final_rating, then manual, then AI for the legacy rating field
-          const legacyRating = finalRating ?? manualRating ?? aiRating;
-
-          return {
-            id: item.id,
-            register_id: item.register_id,
-            file_name: item.file_name,
-            file_size: item.file_size,
-            file_type: item.file_type,
-            state: item.state || null,
-            district: item.district || null,
-            mandal: item.mandal || null,
-            submission_date: item.submission_date,
-            created_at: item.created_at,
-            user_email: item.user_email || '',
-            ai_rating: aiRating,
-            manual_rating: manualRating,
-            final_rating: finalRating,
-            rating: legacyRating,
-            context: item.context || null,
-            first_name: item.first_name || null,
-            last_name: item.last_name || null,
-          } as Assignment;
-        });
+        const formattedAssignments = responseData.map((e: any) => ({
+          id: e.id,
+          register_id: e.register_id,
+          file_name: e.file_name,
+          file_size: e.file_size,
+          file_type: e.file_type,
+          state: e.state || null,
+          district: e.district || null,
+          mandal: e.mandal || null,
+          submission_date: e.submission_date,
+          created_at: e.created_at,
+          user_email: e.user_email || '',
+          
+          // Convert all ratings to numbers, handling null/undefined cases
+          ai_rating: e.ai_rating ? Number(e.ai_rating) : null,
+          manual_rating: e.manual_rating ? Number(e.manual_rating) : null,
+          final_rating: e.final_rating ? Number(e.final_rating) : null,
+          
+          // Legacy rating field - prefer final_rating, then manual, then AI
+          rating: e.final_rating ? Number(e.final_rating) : 
+                 e.manual_rating ? Number(e.manual_rating) : 
+                 e.ai_rating ? Number(e.ai_rating) : null,
+                 
+          context: e.context || null,
+          first_name: e.first_name || null,
+          last_name: e.last_name || null
+        }));
 
         // Initialize ratings state with existing MANUAL ratings only
         const initialRatings = formattedAssignments.reduce((acc: RatingState, assignment: Assignment) => {
