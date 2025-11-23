@@ -237,41 +237,38 @@ const DynamicTenantHeader = () => {
     return null;
   }
 
-
   return (
     <div className="w-full bg-white shadow-sm py-4">
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-center gap-4">
+        <div className="flex items-center justify-between gap-4">
           {/* Left Image */}
-          {headerData?.left_image_url && (
+          {headerData.left_image_url && (
             <div className="shrink-0" style={{ maxHeight: '80px', maxWidth: '80px' }}>
-              <Image
-                src={`${process.env.NEXT_PUBLIC_BACKEND_URL || ''}${headerData.left_image_url}`}
+              <Image 
+                src={headerData.left_image_url}
                 alt={`${headerData.tenant_name} Left Logo`}
                 width={80}
                 height={80}
-                className="object-contain h-full w-full"
-                unoptimized={true}
+                className="max-h-20 max-w-20 object-contain"
                 priority
               />
             </div>
           )}
-          
+
           {/* Center Content */}
           <div className="flex-1 max-w-2xl">
             {renderHeaderContent()}
           </div>
           
           {/* Right Image */}
-          {headerData?.right_image_url && (
+          {headerData.right_image_url && (
             <div className="shrink-0" style={{ maxHeight: '80px', maxWidth: '80px' }}>
-              <Image
-                src={`${process.env.NEXT_PUBLIC_BACKEND_URL || ''}${headerData.right_image_url}`}
+              <Image 
+                src={headerData.right_image_url} 
                 alt={`${headerData.tenant_name} Right Logo`}
                 width={80}
                 height={80}
-                className="object-contain h-full w-full"
-                unoptimized={true}
+                className="max-h-20 max-w-20 object-contain"
                 priority
               />
             </div>
