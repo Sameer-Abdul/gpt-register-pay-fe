@@ -241,15 +241,15 @@ const DynamicTenantHeader = () => {
     <div className="w-full bg-white shadow-sm py-4">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between gap-4">
-          {/* Left Image */}
+          {/* Left Image - Increased size */}
           {headerData.left_image_url && (
-            <div className="shrink-0" style={{ maxHeight: '80px', maxWidth: '80px' }}>
+            <div className="shrink-0" style={{ maxHeight: '120px', maxWidth: '120px' }}>
               <Image 
                 src={headerData.left_image_url}
                 alt={`${headerData.tenant_name} Left Logo`}
-                width={80}
-                height={80}
-                className="max-h-20 max-w-20 object-contain"
+                width={120}
+                height={120}
+                className="max-h-[120px] max-w-[120px] object-contain"
                 priority
               />
             </div>
@@ -260,15 +260,15 @@ const DynamicTenantHeader = () => {
             {renderHeaderContent()}
           </div>
           
-          {/* Right Image */}
+          {/* Right Image - Increased size */}
           {headerData.right_image_url && (
-            <div className="shrink-0" style={{ maxHeight: '80px', maxWidth: '80px' }}>
+            <div className="shrink-0" style={{ maxHeight: '120px', maxWidth: '120px' }}>
               <Image 
                 src={headerData.right_image_url} 
                 alt={`${headerData.tenant_name} Right Logo`}
-                width={80}
-                height={80}
-                className="max-h-20 max-w-20 object-contain"
+                width={120}
+                height={120}
+                className="max-h-[120px] max-w-[120px] object-contain"
                 priority
               />
             </div>
