@@ -131,7 +131,7 @@ const DynamicTenantHeader = () => {
               key={index}
               className={
                 index === 0
-                  ? 'text-xl md:text-2xl font-bold text-orange-600 leading-tight'
+                  ? 'text-xl md:text-2xl font-bold text-orange-600 leading-tight whitespace-nowrap'
                   : 'text-sm md:text-base font-medium text-gray-700'
               }
             >
@@ -144,7 +144,7 @@ const DynamicTenantHeader = () => {
 
     // If no custom lines, show the tenant name once
     return (
-      <h1 className="text-center text-xl md:text-2xl font-bold text-orange-600 leading-tight">
+      <h1 className="text-center text-xl md:text-2xl font-bold text-orange-600 leading-tight whitespace-nowrap">
         {tenant_name}
       </h1>
     );
@@ -188,16 +188,16 @@ const DynamicTenantHeader = () => {
   return (
     <div className="w-full bg-white shadow-sm py-4">
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center justify-center gap-2">
           {/* Left Image - Increased size */}
           {headerData.left_image_url && (
-            <div className="shrink-0" style={{ maxHeight: '120px', maxWidth: '120px' }}>
+            <div className="shrink-0" style={{ maxHeight: '100px', maxWidth: '100px' }}>
               <Image 
                 src={headerData.left_image_url}
                 alt={`${headerData.tenant_name} Left Logo`}
                 width={120}
                 height={120}
-                className="max-h-[120px] max-w-[120px] object-contain"
+                className="max-h-[100px] max-w-[100px] object-contain"
                 priority
               />
             </div>
@@ -210,13 +210,13 @@ const DynamicTenantHeader = () => {
           
           {/* Right Image - Increased size */}
           {headerData.right_image_url && (
-            <div className="shrink-0" style={{ maxHeight: '120px', maxWidth: '120px' }}>
+            <div className="shrink-0" style={{ maxHeight: '100px', maxWidth: '100px' }}>
               <Image 
                 src={headerData.right_image_url} 
                 alt={`${headerData.tenant_name} Right Logo`}
                 width={120}
                 height={120}
-                className="max-h-[120px] max-w-[120px] object-contain"
+                className="max-h-[100px] max-w-[100px] object-contain"
                 priority
               />
             </div>
