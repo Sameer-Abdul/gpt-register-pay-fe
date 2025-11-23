@@ -353,7 +353,9 @@ export default function AdminDashboard() {
               ? rating * 10
               : undefined;
       
-      if (typeof rating !== 'number' || rating < 0 || rating > 10) {
+      // Convert to number and validate
+      const numericRating = Number(rating);
+      if (isNaN(numericRating) || numericRating < 0 || numericRating > 10) {
         throw new Error('Invalid rating received from AI analysis');
       }
 
