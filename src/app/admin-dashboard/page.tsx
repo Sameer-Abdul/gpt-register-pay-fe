@@ -225,10 +225,16 @@ export default function AdminDashboard() {
           created_at: e.created_at,
           user_email: e.user_email || '',
           
-          // Convert all ratings to numbers, handling null/undefined cases
-          ai_rating: e.ai_rating ? Number(e.ai_rating) : null,
-          manual_rating: e.manual_rating ? Number(e.manual_rating) : null,
-          final_rating: e.final_rating ? Number(e.final_rating) : null,
+          // Convert all ratings to numbers, handling null/undefined cases properly
+          ai_rating: e.ai_rating !== null && e.ai_rating !== undefined
+            ? Number(e.ai_rating)
+            : null,
+          manual_rating: e.manual_rating !== null && e.manual_rating !== undefined
+            ? Number(e.manual_rating)
+            : null,
+          final_rating: e.final_rating !== null && e.final_rating !== undefined
+            ? Number(e.final_rating)
+            : null,
           
           // Legacy rating field - prefer final_rating, then manual, then AI
           rating: e.final_rating ? Number(e.final_rating) : 
