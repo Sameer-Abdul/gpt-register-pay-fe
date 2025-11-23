@@ -117,42 +117,6 @@ const DynamicTenantHeader = () => {
     }
   }, [pathname]);
   
-  // Don't render anything during server-side rendering
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  
-  if (loading) {
-    return (
-      <div className="w-full bg-white shadow-sm py-4">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-16 w-16 rounded-md" />
-            <div className="flex-1 px-4">
-              <Skeleton className="h-6 w-64 mx-auto mb-2" />
-              <Skeleton className="h-4 w-48 mx-auto" />
-            </div>
-            <Skeleton className="h-16 w-16 rounded-md" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-  
-  if (error) {
-    return (
-      <div className="w-full bg-red-50 border-l-4 border-red-400 p-4">
-        <div className="container mx-auto">
-          <p className="text-red-700">{error}</p>
-        </div>
-      </div>
-    );
-  }
-  
-  if (!headerData) {
-    return null;
-  }
-
   const renderHeaderContent = () => {
     if (!headerData) return null;
 
@@ -238,38 +202,76 @@ const DynamicTenantHeader = () => {
     }
   };
 
+  // Don't render anything during server-side rendering
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  
+  if (loading) {
+    return (
+      <div className="w-full bg-white shadow-sm py-4">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-center gap-4">
+            <div className="w-20" />
+            <div className="flex-1 max-w-2xl">
+              <div className="h-6 bg-gray-200 rounded w-48 mx-auto"></div>
+            </div>
+            <div className="w-20" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="w-full bg-red-50 border-l-4 border-red-400 p-4">
+        <div className="container mx-auto">
+          <p className="text-red-700">{error}</p>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!headerData) {
+    return null;
+  }
+
+
   return (
-    <div className="w-full bg-white shadow-sm">
-      <div className="container mx-auto px-4 py-2">
-        <div className="flex items-center justify-between">
+    <div className="w-full bg-white shadow-sm py-4">
+      <div className="container mx-auto px-4">
+        <div className="flex items-center justify-center gap-4">
           {/* Left Image */}
-          {headerData.left_image_url && (
-            <div className="shrink-0">
+          {headerData?.left_image_url && (
+            <div className="shrink-0" style={{ maxHeight: '80px', maxWidth: '80px' }}>
               <Image
                 src={`${process.env.NEXT_PUBLIC_BACKEND_URL || ''}${headerData.left_image_url}`}
-                alt={`${headerData.tenant_name} Logo`}
+                alt={`${headerData.tenant_name} Left Logo`}
                 width={80}
                 height={80}
-                className="h-20 w-auto object-contain"
+                className="object-contain h-full w-full"
+                unoptimized={true}
                 priority
               />
             </div>
           )}
           
           {/* Center Content */}
-          <div className="flex-1 px-4">
+          <div className="flex-1 max-w-2xl">
             {renderHeaderContent()}
           </div>
           
           {/* Right Image */}
-          {headerData.right_image_url && (
-            <div className="shrink-0">
+          {headerData?.right_image_url && (
+            <div className="shrink-0" style={{ maxHeight: '80px', maxWidth: '80px' }}>
               <Image
                 src={`${process.env.NEXT_PUBLIC_BACKEND_URL || ''}${headerData.right_image_url}`}
-                alt={`${headerData.tenant_name} Logo`}
+                alt={`${headerData.tenant_name} Right Logo`}
                 width={80}
                 height={80}
-                className="h-20 w-auto object-contain"
+                className="object-contain h-full w-full"
+                unoptimized={true}
                 priority
               />
             </div>
