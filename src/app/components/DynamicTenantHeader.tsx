@@ -122,84 +122,32 @@ const DynamicTenantHeader = () => {
 
     const { tenant_name, header_format, header_custom_lines } = headerData;
 
-    switch (header_format) {
-      case 'single':
-        return (
-          <h1 className="text-center text-xl md:text-2xl font-bold text-orange-600 leading-tight">
-            {tenant_name}
-          </h1>
-        );
-
-      case 'double': {
-        const words = tenant_name.split(' ');
-        const mid = Math.ceil(words.length / 2);
-        const firstLine = words.slice(0, mid).join(' ');
-        const secondLine = words.slice(mid).join(' ');
-        
-        return (
-          <div className="text-center space-y-0.5">
-            <h1 className="text-xl md:text-2xl font-bold text-orange-600 leading-tight">
-              {firstLine}
+    // If there are custom lines, use them instead of the tenant name
+    if (header_custom_lines) {
+      return (
+        <div className="text-center space-y-0.5">
+          {header_custom_lines.split('\n').map((line: string, index: number) => (
+            <h1
+              key={index}
+              className={
+                index === 0
+                  ? 'text-xl md:text-2xl font-bold text-orange-600 leading-tight'
+                  : 'text-sm md:text-base font-medium text-gray-700'
+              }
+            >
+              {line}
             </h1>
-            <h1 className="text-lg md:text-xl font-bold text-pink-800">
-              {secondLine}
-            </h1>
-            {header_custom_lines && (
-              <h3 className="text-xs md:text-sm font-bold text-green-700 leading-tight">
-                {header_custom_lines}
-              </h3>
-            )}
-          </div>
-        );
-      }
-
-      case 'multiline':
-        return (
-          <div className="text-center">
-            {tenant_name.split(' ').map((word: string, index: number) => (
-              <h1 key={index} className="text-xl font-bold">
-                {word}
-              </h1>
-            ))}
-          </div>
-        );
-
-      case 'custom':
-        return (
-          <div className="text-center space-y-0.5">
-            {header_custom_lines?.split('\n').map((line: string, index: number) => (
-              <h1
-                key={index}
-                className={
-                  index === 0
-                    ? 'text-xl md:text-2xl font-bold text-orange-600 leading-tight'
-                    : index === 1
-                    ? 'text-lg md:text-xl font-bold text-pink-800'
-                    : 'text-xs md:text-sm font-bold text-green-700 leading-tight'
-                }
-              >
-                {line}
-              </h1>
-            ))}
-          </div>
-        );
-
-      case 'auto':
-      default: {
-        return (
-          <div className="text-center space-y-0.5">
-            <h1 className="text-xl md:text-2xl font-bold text-orange-600 leading-tight">
-              {tenant_name}
-            </h1>
-            {header_custom_lines && (
-              <h3 className="text-xs md:text-sm font-bold text-green-700 leading-tight">
-                {header_custom_lines}
-              </h3>
-            )}
-          </div>
-        );
-      }
+          ))}
+        </div>
+      );
     }
+
+    // If no custom lines, show the tenant name once
+    return (
+      <h1 className="text-center text-xl md:text-2xl font-bold text-orange-600 leading-tight">
+        {tenant_name}
+      </h1>
+    );
   };
 
   // Don't render anything during server-side rendering
