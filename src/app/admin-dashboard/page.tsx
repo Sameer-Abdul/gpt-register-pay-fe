@@ -10,6 +10,13 @@ import { toast } from '@/components/ui/use-toast';
 import { MeritSection } from '@/components/merit/MeritSection';
 import OllamaStatus from '@/components/OllamaStatus';
 
+// Helper function to safely convert rating values
+const safeRating = (value: any): number | null => {
+  if (value === null || value === undefined || value === "") return null;
+  const num = Number(value);
+  return isNaN(num) ? null : num;   // 0 becomes valid
+};
+
 interface Assignment {
   id: number;
   register_id: number;
@@ -212,39 +219,44 @@ export default function AdminDashboard() {
         console.log(`Received ${responseData.length} assignments`);
         
         // Transform the data to match our Assignment interface
-        const formattedAssignments = responseData.map((e: any) => ({
-          id: e.id,
-          register_id: e.register_id,
-          file_name: e.file_name,
-          file_size: e.file_size,
-          file_type: e.file_type,
-          state: e.state || null,
-          district: e.district || null,
-          mandal: e.mandal || null,
-          submission_date: e.submission_date,
-          created_at: e.created_at,
-          user_email: e.user_email || '',
+        const safeRating = (value: any): number | null => {
+          if (value === null || value === undefined || value === '') return null;
+          const num = Number(value);
+          return isNaN(num) ? null : num;
+        };
+
+        const formattedAssignments = responseData.map((e: any) => {
+          // Get all ratings safely
+          const aiRating = safeRating(e.ai_rating);
+          const manualRating = safeRating(e.manual_rating);
+          const finalRating = safeRating(e.final_rating);
           
-          // Convert all ratings to numbers, handling null/undefined cases properly
-          ai_rating: e.ai_rating !== null && e.ai_rating !== undefined
-            ? Number(e.ai_rating)
-            : null,
-          manual_rating: e.manual_rating !== null && e.manual_rating !== undefined
-            ? Number(e.manual_rating)
-            : null,
-          final_rating: e.final_rating !== null && e.final_rating !== undefined
-            ? Number(e.final_rating)
-            : null,
-          
-          // Legacy rating field - prefer final_rating, then manual, then AI
-          rating: e.final_rating ? Number(e.final_rating) : 
-                 e.manual_rating ? Number(e.manual_rating) : 
-                 e.ai_rating ? Number(e.ai_rating) : null,
-                 
-          context: e.context || null,
-          first_name: e.first_name || null,
-          last_name: e.last_name || null
-        }));
+          return {
+            id: e.id,
+            register_id: e.register_id,
+            file_name: e.file_name,
+            file_size: e.file_size,
+            file_type: e.file_type,
+            state: e.state || null,
+            district: e.district || null,
+            mandal: e.mandal || null,
+            submission_date: e.submission_date,
+            created_at: e.created_at,
+            user_email: e.user_email || '',
+            
+            // Store ratings as numbers or null
+            ai_rating: aiRating,
+            manual_rating: manualRating,
+            final_rating: finalRating,
+            
+            // Final rating priority logic
+            rating: finalRating ?? manualRating ?? aiRating ?? null,
+                     
+            context: e.context || null,
+            first_name: e.first_name || null,
+            last_name: e.last_name || null
+          };
+        });
 
         // Initialize ratings state with existing MANUAL ratings only
         const initialRatings = formattedAssignments.reduce((acc: RatingState, assignment: Assignment) => {
@@ -260,15 +272,17 @@ export default function AdminDashboard() {
           const updatedAssignments = formattedAssignments.map(a => {
             const existingAssignment = prev.find(p => p.id === a.id);
             if (!existingAssignment) return a;
-            
-            // Preserve existing ratings if they exist, otherwise use new values
-            return {
-              ...a,
-              ai_rating: existingAssignment.ai_rating !== null ? existingAssignment.ai_rating : a.ai_rating,
-              manual_rating: existingAssignment.manual_rating !== null ? existingAssignment.manual_rating : a.manual_rating,
-              final_rating: existingAssignment.final_rating !== null ? existingAssignment.final_rating : a.final_rating,
-              rating: existingAssignment.rating !== null ? existingAssignment.rating : a.rating
-            };
+                        // Preserve existing ratings if new ones are null/undefined
+              // This prevents polling from overwriting valid ratings with null
+              return {
+                ...a,
+                ai_rating: a.ai_rating ?? existingAssignment.ai_rating,
+                manual_rating: a.manual_rating ?? existingAssignment.manual_rating,
+                final_rating: a.final_rating ?? existingAssignment.final_rating,
+                // Recalculate the rating to ensure it's always up to date
+                rating: (a.final_rating ?? a.manual_rating ?? a.ai_rating) ?? 
+                       (existingAssignment.final_rating ?? existingAssignment.manual_rating ?? existingAssignment.ai_rating)
+              };
           });
           
           // If there are any new assignments that weren't in the previous state, add them
@@ -688,16 +702,14 @@ export default function AdminDashboard() {
                 <tbody className="bg-white divide-y divide-gray-100">
                   {assignments.map((assignment, index) => {
                     const rowClass = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
-                    const rating =
-                      assignment.final_rating !== null && assignment.final_rating !== undefined
-                        ? Number(assignment.final_rating)
-                        : null;
+                    // Use final_rating if available, otherwise fall back to manual_rating or ai_rating
+                    const rating = assignment.final_rating ?? assignment.manual_rating ?? assignment.ai_rating;
                     let ratingColor = 'bg-gray-100 text-gray-800';
 
                     if (rating !== null) {
                       if (rating >= 8) ratingColor = 'bg-green-100 text-green-800';
                       else if (rating >= 5) ratingColor = 'bg-yellow-100 text-yellow-800';
-                      else if (rating > 0) ratingColor = 'bg-orange-100 text-orange-800';
+                      else if (rating >= 0) ratingColor = 'bg-orange-100 text-orange-800';
                     }
 
                     return (

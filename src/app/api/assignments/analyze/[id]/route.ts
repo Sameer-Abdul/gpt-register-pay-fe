@@ -118,17 +118,20 @@ export async function POST(
 
       const updated = updateResult.rows[0];
 
-      return NextResponse.json({
+      // Ensure all ratings are numbers
+      const responseData = {
         success: true,
         id: assignmentId,
         data: {
           rating,
           score: rating * 10,
-          ai_rating: updated?.ai_rating ?? rating,
-          manual_rating: updated?.manual_rating ?? null,
-          final_rating: updated?.final_rating ?? rating,
+          ai_rating: Number(updated?.ai_rating ?? rating),
+          manual_rating: updated?.manual_rating !== null ? Number(updated.manual_rating) : null,
+          final_rating: Number(updated?.final_rating ?? rating),
         },
-      });
+      };
+
+      return NextResponse.json(responseData);
     } finally {
       client.release();
     }
